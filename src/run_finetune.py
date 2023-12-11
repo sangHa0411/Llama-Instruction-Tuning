@@ -12,8 +12,9 @@ from jax.sharding import Mesh
 from jax.experimental import mesh_utils
 from utils.collator import Seq2SeqCollator
 from utils.convert import ParameterConvertor
-from utils.loader import InstructionDatasetLoader
+from utils.loader import InstructionDatasetLoader, EvalDatasetLoader
 from utils.preprocessor import InstructionDatasetPreprocessor
+from utils.eval_preprocessor import EvaluationDatasetPreprocessor
 from utils.collator import Seq2SeqCollator
 from model.llama_model import FlaxLlaMaForCausalLM
 from datasets import disable_caching
@@ -65,14 +66,28 @@ def train(args):
     disable_caching()
 
     # Loading Dataset
-    loader = InstructionDatasetLoader(args.random_seed, args.datasets, args.ratios)
-    instruction_dataset = loader.load()
+    ## Train Dataset
+    train_dataset_loader = InstructionDatasetLoader(args.random_seed, args.instruction_datasets, args.dataset_ratios)
+    instruction_dataset = train_dataset_loader.load()
     logging.info(f"Instruction dataset:{instruction_dataset}")
-
+    
+    ## Evaluation Dataset
+    eval_dataset_loader = EvalDatasetLoader(args.random_seed, args.evaluation_datasets)
+    evaluation_dataset = eval_dataset_loader.load()
+    logging.info(f"Instruction dataset:{evaluation_dataset}")
+    
     # Preprocessing and Encodign Dataset
-    preprocessor = InstructionDatasetPreprocessor(tokenizer=tokenizer, sequence_max_length=args.sequence_max_length)
-    encoded_instruction_dataset = preprocessor(instruction_dataset)
+    ## Train Dataset
+    train_preprocessor = InstructionDatasetPreprocessor(tokenizer=tokenizer, sequence_max_length=args.sequence_max_length)
+    encoded_instruction_dataset = train_preprocessor(args.instruction_datasets, instruction_dataset)
     logging.info(f"Encoded dataset:{encoded_instruction_dataset}")
+
+    ## Evaluation Dataset
+    eval_preprocessor = EvaluationDatasetPreprocessor(tokenizer=tokenizer, sequence_max_length=args.sequence_max_length)
+    encoded_evaluation_dataset = eval_preprocessor(args.evaluation_datasets, args.evaluation_shots, evaluation_dataset)
+    logging.info(f"Encoded dataset:{encoded_evaluation_dataset}")
+    
+    breakpoint()
 
     # Setting Device & Model mesh
     num_tpu_device = jax.device_count()
@@ -121,8 +136,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="lg-t5")
 
     # Dataset names
-    parser.add_argument("--datasets", type=str, default="[alpaca,cot-collection]", help="instruction datasets")
-    parser.add_argument("--ratios", type=str, default="[1.0,0.1]", help="instruction dataset ratios")
+    parser.add_argument("--instruction_datasets", type=str, default="[alpaca,cot-collection]", help="instruction datasets")
+    parser.add_argument("--dataset_ratios", type=str, default="[1.0,0.1]", help="instruction dataset ratios")
+    parser.add_argument("--evaluation_datasets", type=str, default="[ai2_arc,Rowan/hellaswag]", help="evaluation datasets")
+    parser.add_argument("--evaluation_shots", type=str, default="[0,0]", help="shot size for evaluation")
 
     # Wandb logging name
     parser.add_argument("--entity_name", type=str, default="sangha0411", help="wandb entity name")

@@ -6,7 +6,7 @@ from datasets import Dataset
 from typing import List
 from pytz import timezone
 from datetime import datetime
-from datasets import load_dataset
+from datasets import load_dataset, concatenate_datasets
 
 logging.basicConfig(format = "[%(asctime)s][%(levelname)s][Message] - %(message)s", level = logging.INFO)
 logging.Formatter.converter = lambda *args: datetime.now(tz=timezone("Asia/Seoul")).timetuple()
@@ -24,7 +24,7 @@ class InstructionDatasetLoader :
         datasets = {}
         for i, data in enumerate(self.datasets) :
  
-            logging.info(f"Loading Dataset | {data}")
+            logging.info(f"Loading instruction dataset | {data}")
 
             if self.ratios[i][-1] == "%" :
                 num_data = int(len(dataset) * float(self.ratios[i][:-1]))
@@ -55,6 +55,48 @@ class InstructionDatasetLoader :
                 raise NameError("Not valid dataset name")
             
             datasets[dataset_path] = dataset
+        return datasets
+
+    
+
+class EvalDatasetLoader :
+
+    def __init__(self, random_seed: int, datasets : str) :
+        self.random_seed = random_seed
+        self.datasets = datasets[1:-1].split(",")
+                
+    def load(self) :
+        datasets = {}
+        for i, data in enumerate(self.datasets) : 
+            logging.info(f"Loading evaluation dataset | {data}")
+            
+            if "ai2_arc" == data :
+                dataset_path = "ai2_arc"
+                challenge_dataset = load_dataset(dataset_path, "ARC-Challenge", cache_dir="/mnt/disks-standard/persist/huggingface")
+                challenge_dataset = challenge_dataset["validation"]
+
+                easy_dataset = load_dataset(dataset_path, "ARC-Easy", cache_dir="/mnt/disks-standard/persist/huggingface")
+                easy_dataset = easy_dataset["validation"]
+                
+                dataset = concatenate_datasets([challenge_dataset, easy_dataset])
+                dataset = dataset.shuffle(self.random_seed)
+
+            elif "Rowan/hellaswag" == data :
+                dataset_path = "Rowan/hellaswag"
+                dataset = load_dataset(dataset_path, split="validation", cache_dir="/mnt/disks-standard/persist/huggingface")
+                dataset = dataset.shuffle(self.random_seed)
+
+            elif "gsm8k" == data :
+                dataset_path = "gsm8k"
+
+                dataset = load_dataset(dataset_path, "main", cache_dir="/mnt/disks-standard/persist/huggingface")
+                dataset = dataset["test"]
+                dataset = dataset.shuffle(self.random_seed)
+            else :
+                raise NameError("Not valid dataset name")
+            
+            datasets[dataset_path] = dataset
+
         return datasets
 
     

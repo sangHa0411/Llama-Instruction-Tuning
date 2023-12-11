@@ -2,7 +2,7 @@ import re
 import logging
 import pandas as pd
 import multiprocessing
-from typing import Dict
+from typing import Dict, List
 from pytz import timezone
 from datetime import datetime
 from datasets import Dataset, concatenate_datasets
@@ -30,10 +30,11 @@ class InstructionDatasetPreprocessor :
             "Open-Orca/SlimOrca" : SlimOrcaPreprocessor(tokenizer, sequence_max_length, label_pad_token_id)
         }
 
-    def __call__(self, datasets: Dict[str, Dataset]) -> Dataset :
-        preprocessed_datasets = []
+    def __call__(self, dataset_names: str, datasets: Dict[str, Dataset]) -> Dataset :
+        dataset_names = dataset_names[1:-1].split(",")
 
-        for dataset_name in datasets :
+        preprocessed_datasets = []
+        for dataset_name in dataset_names :
             dataset = datasets[dataset_name]
 
             if dataset_name in self.preprocessors :
@@ -195,25 +196,22 @@ class SlimOrcaPreprocessor :
             conversations = data["conversations"]
             conversations = eval(re.sub("} *\n *{", "},{", conversations))
 
-            for i in range(len(conversations)) :
-                chat = conversations[i]
-                subject = chat["from"]
-                value = chat["value"]
+            assert conversations[-1]["from"] == "gpt"
+            
+            gpt_chat = conversations[-1]
+            gpt_response = gpt_chat["value"]
+            
+            history = []
+            for i in range(len(conversations)-1) :
+                subject = conversations[i]["from"]
+                value = conversations[i]["value"]
+                
+                chat = f"### FROM:\n{subject}\n\n### VALUE:\n{value}\n\n"
+                history.append(chat)
+            context = "".join(history)
 
-                if subject == "gpt" :
-                    history = []
-                    for j in range(i) :
-                        prev_chat = conversations[j]
-                        prev_subject = prev_chat["from"]
-                        prev_value = prev_chat["value"]
-                        sub_text = f"### FROM:\n{prev_subject}\n\n### VALUE:\n{prev_value}\n\n"
-
-                        history.append(sub_text)
-                    context = "".join(history)
-
-                    contexts.append(context)
-                    responses.append(value)
-
+            contexts.append(context)
+            responses.append(gpt_response)
 
         splited_dataset = Dataset.from_pandas(
             pd.DataFrame({"context" : contexts, "response" : responses})
