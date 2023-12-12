@@ -26,7 +26,9 @@ class InstructionDatasetLoader :
  
             logging.info(f"Loading instruction dataset | {data}")
 
-            if self.ratios[i][-1] == "%" :
+            if self.ratios[i] == "all" :
+                num_data = len(dataset)
+            elif self.ratios[i][-1] == "%" :
                 num_data = int(len(dataset) * float(self.ratios[i][:-1]))
             else :  
                 num_data = int(self.ratios[i])

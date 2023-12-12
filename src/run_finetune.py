@@ -49,8 +49,7 @@ def get_model_and_tokenizer(args) -> Tuple[LlamaConfig, LlamaForCausalLM, LlamaT
 
     # Load torch model
     logging.info("Load huggingface model")
-    # torch_model = LlamaForCausalLM.from_pretrained(model_path, cache_dir="/mnt/disks-standard/persist/huggingface")
-    torch_model = None
+    torch_model = LlamaForCausalLM.from_pretrained(model_path, cache_dir="/mnt/disks-standard/persist/huggingface")
 
     return config, torch_model, tokenizer
 
@@ -85,8 +84,8 @@ def train(args):
 
     ## Evaluation Dataset
     eval_preprocessor = EvaluationDatasetPreprocessor(tokenizer=tokenizer, sequence_max_length=args.sequence_max_length)
-    encoded_evaluation_dataset = eval_preprocessor(args.evaluation_datasets, args.evaluation_shots, evaluation_dataset)
-    logging.info(f"Encoded dataset:{encoded_evaluation_dataset}")
+    encoded_evaluation_datasets = eval_preprocessor(args.evaluation_datasets, args.evaluation_shots, evaluation_dataset)
+    logging.info(f"Encoded dataset:{encoded_evaluation_datasets}")
     
     # Setting Device & Model mesh
     num_tpu_device = jax.device_count()
@@ -111,7 +110,9 @@ def train(args):
         args=args, 
         model=model, 
         params=params, 
+        tokenizer=tokenizer,
         dataset=encoded_instruction_dataset, 
+        eval_datasets=encoded_evaluation_datasets,
         data_collator=data_collator
     )
 
@@ -132,7 +133,7 @@ def seed_everything(seed):
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="lg-t5")
+    parser = argparse.ArgumentParser(description="Llama-Instruction-Tuning")
 
     # Dataset names
     parser.add_argument("--instruction_datasets", type=str, default="[alpaca,cot-collection]", help="instruction datasets")

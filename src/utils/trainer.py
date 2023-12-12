@@ -3,7 +3,7 @@ import optax
 import logging
 import numpy as np
 import jax.numpy as jnp
-from typing import Dict
+from typing import Dict, Any, Tuple
 from pytz import timezone
 from datetime import datetime
 from datasets import Dataset
@@ -11,7 +11,9 @@ from jaxtyping import PyTree
 from utils.loss import loss_fn
 from data.data_loader import data_loader
 from data.collator import Seq2SeqCollator
+from eval.metrics import InstructionMetrics
 from model.llama_model import FlaxLlaMaForCausalLM
+from transformers import LlamaTokenizer
 from utils.scheduler import create_constant_lr_scheduler, create_linear_decay_lr_scheduler
 from tqdm import tqdm
 
@@ -26,13 +28,18 @@ class Trainer :
         args, 
         model: FlaxLlaMaForCausalLM, 
         params: PyTree[np.ndarray], 
+        tokenizer: LlamaTokenizer,
         dataset: Dataset,
+        eval_datasets: Dict[str, Dataset],
         data_collator: Seq2SeqCollator 
     ) :
+
         self.args = args
         self.model = model
         self.params = params
+        self.tokenizer = tokenizer
         self.dataset = dataset
+        self.eval_datasets = eval_datasets
         self.data_collator = data_collator
 
         # Train & Eval Batch size
@@ -67,8 +74,75 @@ class Trainer :
         )
         self.optimizer = optimizer
 
-    def train(self, ) :
+    def evaluate(self, ) :
+        jax_params = self.params
+        jax_model = self.model
 
+        insturction_metrics = InstructionMetrics()
+
+        @jax.jit
+        def generate_step(params, input_ids: jnp.ndarray, sequence_length: int):
+
+            pad_ids = jnp.ones((1, self.args.generation_max_length), dtype=jnp.int32) * self.tokenizer.pad_token_id
+            input_ids = jnp.concatenate((input_ids, pad_ids), axis=1)
+
+            def body_fn(n: int, input_state: Tuple[jnp.ndarray, int]) :
+                sub_input_ids, sequence_last_pos = input_state
+                logits = jax_model(input_ids=sub_input_ids, params=params, train=False)[0]
+
+                pred = jnp.argmax(logits[0, sequence_last_pos, :])
+                sub_input_ids = sub_input_ids.at[0, sequence_last_pos+1].set(pred)
+
+                input_state = (sub_input_ids, sequence_last_pos+1)
+                return input_state
+
+            input_state = (input_ids, sequence_length-1)
+            output_state = jax.lax.fori_loop(lower=0, upper=self.args.generation_max_length, body_fun=body_fn, init_val=input_state)
+            return output_state
+
+        rng = jax.random.PRNGKey(self.args.random_seed)
+        rng, dropout_rng = jax.random.split(rng)
+
+        logging.info("Evaluation Starts")
+        for dataset_name in self.eval_datasets :
+            eval_dataset = self.eval_datasets[dataset_name]
+            logging.info(f"Evaluation dataset name : {dataset_name} | dataset information : {eval_dataset}")
+
+            eval_labels = eval_dataset["labels"]
+            eval_dataset = eval_dataset.remove_columns(["labels"])
+
+            eval_loader = data_loader(
+                rng=dropout_rng, 
+                dataset=eval_dataset, 
+                data_collator=self.data_collator,
+                batch_size=1, 
+                shuffle=False,
+                drop_last=False
+            )
+
+            eval_predictions = []
+            for eval_data in tqdm(eval_loader) :
+                input_ids = eval_data["input_ids"]
+                sequence_length = input_ids[0].tolist().index(self.tokenizer.pad_token_id) - 1
+
+                output_state = generate_step(jax_params, input_ids, sequence_length)
+
+                output_ids, sequence_end_length = output_state
+                output_sequence = self.tokenizer.decode(output_ids[0][sequence_length+1:sequence_end_length])
+                output_sequence = output_sequence.split("\n\n\n\n")[0]
+
+                eval_predictions.append(output_sequence)
+
+            if dataset_name == "ai2_arc" or dataset_name == "Rowan/hellaswag" :
+                metric = insturction_metrics.get_multiple_choice_accuracy(eval_predictions, eval_labels)
+            elif dataset_name == "gsm8k" :
+                metric = insturction_metrics.get_gsm8k_accuracy(eval_predictions, eval_labels)
+            else :
+                raise NameError("Not valid evaluation dataset name")
+
+            logging.info(f"Evaluation dataset name : {dataset_name} | Accuracy : {metric}")
+
+    def train(self, ) :
         optimizer_update = self.optimizer.update
         opt_state = self.optimizer.init(self.params)
         jax_params = self.params
@@ -138,3 +212,9 @@ class Trainer :
                     if training_step_ptr % self.args.logging_steps == 0 :
                         logging.info(f"Train [Step : {training_step_ptr}] | Loss: {round(train_metric['loss'].mean(), 3)}, Learning Rate: {round(train_metric['learning_rate'].mean(), 9)}")
 
+                    if self.args.evaluation_strategy == "steps" :
+                        if training_step_ptr % self.args.eval_steps == 0 :
+                            self.evaluate()
+
+            if self.args.evaluation_strategy == "epoch" :
+                self.evaluate()

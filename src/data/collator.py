@@ -1,4 +1,4 @@
-import numpy as np
+import jax.numpy as jnp
 from dataclasses import dataclass
 from transformers import T5Tokenizer
 
@@ -27,7 +27,7 @@ class Seq2SeqCollator:
 
         return seq_ids
     
-    def __call__(self, features, return_tensors=None):
+    def __call__(self, features):
         collated = {}
 
         columns = list(features.keys())
@@ -47,7 +47,7 @@ class Seq2SeqCollator:
                 continue
             
             batch_ids = [self.pad(b, pad_token_id, max_length) for b in batch]
-            batch_array = np.array(batch_ids, dtype=np.int64)
+            batch_array = jnp.array(batch_ids, dtype=jnp.int32)
 
             collated[column] = batch_array
 
