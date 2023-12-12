@@ -178,11 +178,10 @@ if __name__ == "__main__":
 
     # Epoch & Batch size
     parser.add_argument("--num_train_epochs", type=int, default=3, help="num_train_epochs for training")
-    parser.add_argument("--per_device_train_batch_size", type=int, default=1, help="training batch size")
-    parser.add_argument("--per_device_eval_batch_size", type=int, default=1, help="evaluation batch size, if none, use batch_size")
+    parser.add_argument("--per_device_train_batch_size", type=int, default=2, help="training batch size")
 
     # Optimizer
-    parser.add_argument("--learning_rate", type=float, default=3e-5, help="dataset")
+    parser.add_argument("--learning_rate", type=float, default=5e-6, help="dataset")
     parser.add_argument("--weight_decay", type=float, default=0.01, help="dataset")
 
     # Scheduler

@@ -15,6 +15,7 @@ from eval.metrics import InstructionMetrics
 from model.llama_model import FlaxLlaMaForCausalLM
 from transformers import LlamaTokenizer
 from utils.scheduler import create_constant_lr_scheduler, create_linear_decay_lr_scheduler
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 logging.basicConfig(format = "[%(asctime)s][%(levelname)s][Message] - %(message)s", level = logging.INFO)
@@ -74,7 +75,10 @@ class Trainer :
         )
         self.optimizer = optimizer
 
-    def evaluate(self, ) :
+        # tensorboard for logging
+        self.writer = SummaryWriter(log_dir=args.logging_path)
+
+    def evaluate(self, trainin_step: int) :
         jax_params = self.params
         jax_model = self.model
 
@@ -150,6 +154,11 @@ class Trainer :
 
                 logging.info(f"Evaluation dataset name : {dataset_name} | Accuracy : {metric}")
 
+                for key in metric :
+                    score = metric[key]
+                    self.writer.add_scalar(f"{dataset_name}/{key}", score, global_step=trainin_step)
+
+
     def train(self, ) :
         optimizer_update = self.optimizer.update
         opt_state = self.optimizer.init(self.params)
@@ -218,11 +227,16 @@ class Trainer :
                     progress_bar_train.update(1)
 
                     if training_step_ptr % self.args.logging_steps == 0 :
-                        logging.info(f"Train [Step : %s] | Loss: %e, Learning Rate: %e" %(training_step_ptr, train_metric["loss"].mean(), train_metric["learning_rate"]))
+                        train_loss = train_metric["loss"].mean().item()
+                        learning_rate = train_metric["learning_rate"].item()
+                        logging.info(f"Train [Step : %s] | Loss: %.8f & Learning Rate: %e" %(training_step_ptr, train_loss, learning_rate))
+
+                        self.writer.add_scalar("train/loss", train_loss, global_step=training_step_ptr)
+                        self.writer.add_scalar("train/learning_rate", learning_rate, global_step=training_step_ptr)
 
                     if self.args.evaluation_strategy == "steps" :
                         if training_step_ptr % self.args.eval_steps == 0 :
-                            self.evaluate()
+                            self.evaluate(training_step_ptr)
 
             if self.args.evaluation_strategy == "epoch" :
-                self.evaluate()
+                self.evaluate(training_step_ptr)
