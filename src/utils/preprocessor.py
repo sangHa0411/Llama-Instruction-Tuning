@@ -25,10 +25,12 @@ class InstructionDatasetPreprocessor :
         self.num_cores = multiprocessing.cpu_count() // 3
 
         self.preprocessors = {
-            "tatsu-lab/alpaca" : AlpacaPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
-            "kaist-ai/CoT-Collection" : CoTCollectionPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
-            "Open-Orca/SlimOrca" : SlimOrcaPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
-            "beaugogh/openorca-multiplechoice-10k" : OpenOrcaMCPreprocessor(tokenizer, sequence_max_length, label_pad_token_id)
+            "alpaca" : AlpacaPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
+            "cot-collections" : CoTCollectionPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
+            "slimorca" : SlimOrcaPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
+            "openorca-multiplechoice" : OpenOrcaMCPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
+            "arc" : ArcPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
+            "gsm8k" : GSM8KPreprocessor(tokenizer, sequence_max_length, label_pad_token_id)
         }
 
     def __call__(self, dataset_names: str, datasets: Dict[str, Dataset]) -> Dataset :
@@ -45,7 +47,7 @@ class InstructionDatasetPreprocessor :
                 preprocess_fn = preprocessor.preprocess
                 preprocessed = dataset.map(preprocess_fn, batched=True, num_proc=self.num_cores, remove_columns=dataset.column_names)
                 preprocessed_datasets.append(preprocessed)  
-
+        
         preprocessed_datasets = concatenate_datasets(preprocessed_datasets)
         return preprocessed_datasets
 
@@ -167,7 +169,6 @@ class CoTCollectionPreprocessor :
         return datasets
 
 
-
 class SlimOrcaPreprocessor :
     def __init__(self, 
         tokenizer: LlamaTokenizer,
@@ -243,7 +244,6 @@ class SlimOrcaPreprocessor :
         return datasets
 
 
-
 class OpenOrcaMCPreprocessor :
     def __init__(self, 
         tokenizer: LlamaTokenizer,
@@ -270,6 +270,123 @@ class OpenOrcaMCPreprocessor :
             all_text = f"### INSTRUCTION:\n{prompt}\n\n### QUESTION:\n{question}\n\n### RESPONSE:\n{response}"
             source_text = f"### INSTRUCTION:\n{prompt}\n\n### INPUT:\n{question}\n\n### RESPONSE:\n"
            
+            all_input_id = self.tokenizer(
+                all_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            all_input_id = all_input_id + [self.tokenizer.eos_token_id]
+            attention_mask = [1]*len(all_input_id)
+
+            source_input_id = self.tokenizer(
+                source_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            source_input_id_length = len(source_input_id)
+            label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+
+            input_ids.append(all_input_id)
+            attention_masks.append(attention_mask)
+            labels.append(label)
+
+        datasets["input_ids"] = input_ids
+        datasets["attention_mask"] = attention_masks
+        datasets["labels"] = labels
+
+        return datasets
+
+
+class ArcPreprocessor :
+    def __init__(self, 
+        tokenizer: LlamaTokenizer,
+        sequence_max_length: int,
+        label_pad_token_id: int = -100
+    ) :       
+        self.tokenizer = tokenizer
+        self.sequence_max_length = sequence_max_length
+        self.label_pad_token_id = label_pad_token_id
+
+    def preprocess(self, datasets: List[Dict[str, Any]]):
+        questions = datasets["question"]
+        choices = datasets["choices"]
+        answer_keys = datasets["answerKey"]
+
+        input_ids, attention_masks, labels = [], [], []
+
+        size = len(questions)
+        for i in range(size) :
+
+            question = questions[i]
+            choice = choices[i]
+            answer_key = answer_keys[i]
+
+            candidate_answer = " ".join([f"({l}): {t}" for t, l in zip(choice["text"], choice["label"])])
+            if ord(answer_key) >= ord("A") :
+                target_id = ord(answer_key) - ord("A") 
+            else :
+                target_id = int(answer_key) - 1
+
+            target_text = choice["text"][target_id]
+
+            all_text = f"### QUESTION:\n{question}\n\n### CANDIDATE ANSWERS:\n{candidate_answer}\n\n### ANSWER:\n{target_text}"
+            source_text = f"### QUESTION:\n{question}\n\n### CANDIDATE ANSWERS:\n{candidate_answer}\n\n### ANSWER:\n"
+
+            all_input_id = self.tokenizer(
+                all_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            all_input_id = all_input_id + [self.tokenizer.eos_token_id]
+            attention_mask = [1]*len(all_input_id)
+
+            source_input_id = self.tokenizer(
+                source_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            source_input_id_length = len(source_input_id)
+            label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+
+            input_ids.append(all_input_id)
+            attention_masks.append(attention_mask)
+            labels.append(label)
+
+        datasets["input_ids"] = input_ids
+        datasets["attention_mask"] = attention_masks
+        datasets["labels"] = labels
+
+        return datasets
+
+
+class GSM8KPreprocessor :
+    def __init__(self, 
+        tokenizer: LlamaTokenizer,
+        sequence_max_length: int,
+        label_pad_token_id: int = -100
+    ) :       
+        self.tokenizer = tokenizer
+        self.sequence_max_length = sequence_max_length
+        self.label_pad_token_id = label_pad_token_id
+
+    def preprocess(self, datasets: List[Dict[str, Any]]):
+        questions = datasets["question"]
+        answers = datasets["answer"]
+
+        input_ids, attention_masks, labels = [], [], []
+
+        size = len(questions)
+        for i in range(size) :
+            question = questions[i]
+            answer = answers[i]
+            
+            all_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n{answer}"
+            source_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n"
+
             all_input_id = self.tokenizer(
                 all_text, 
                 max_length=self.sequence_max_length,

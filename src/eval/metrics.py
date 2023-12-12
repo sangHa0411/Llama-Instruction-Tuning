@@ -1,10 +1,11 @@
 
+import evaluate
 from typing import List
 
 class InstructionMetrics :
 
     def __init__(self, ) :
-        pass
+        self.bleu_scorer = evaluate.load("bleu")
 
     def get_multiple_choice_accuracy(self, predictions: List[str], labels: List[str]) :
         assert len(predictions) == len(labels)
@@ -30,3 +31,14 @@ class InstructionMetrics :
 
         total_acc = total_acc / len(predictions)
         return total_acc
+
+    def get_truthful_qa_blue(self, predictions: List[str], labels: List[List[str]]) :
+        assert len(predictions) == len(labels)
+
+        total_blue = 0
+        for p, l in zip(predictions, labels) :
+            score = self.bleu_scorer.compute(predictions=p, references=l)
+            total_blue += score["bleu"]
+
+        total_blue = total_blue / len(predictions)
+        return total_blue

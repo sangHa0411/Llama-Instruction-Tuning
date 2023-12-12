@@ -27,14 +27,19 @@ class EvaluationDatasetPreprocessor :
         self.num_cores = multiprocessing.cpu_count() // 3
 
         self.preprocessors = {
-            "ai2_arc" : ArcPreprocessor(tokenizer, sequence_max_length),
-            "Rowan/hellaswag" : HellaswagPreprocessor(tokenizer, sequence_max_length),
+            "arc" : ArcPreprocessor(tokenizer, sequence_max_length),
+            "hellaswag" : HellaswagPreprocessor(tokenizer, sequence_max_length),
+            "gsm8k" : GSM8KPreprocessor(tokenizer, sequence_max_length),
+            "truthful_qa-generation" : TruthfulQAGenerationPreprocessor(tokenizer, sequence_max_length),
+            "truthful_qa-multiple_choice" : TruthfulQAMultipleChoicePreprocessor(tokenizer, sequence_max_length),
         }
 
     def __call__(self, dataset_names: str, num_shots: str, datasets: Dict[str, Dataset]) -> Dict[str, Dataset] :
         dataset_names = dataset_names[1:-1].split(",")
         num_shots = num_shots[1:-1].split(",")
         num_shots = [int(shot) for shot in num_shots]
+
+        assert len(dataset_names) == len(num_shots)
         
         preprocessed_datasets = {}
 
@@ -297,6 +302,178 @@ class GSM8KPreprocessor :
             
             input_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n"
             target_text = answer
+
+            if num_shot > 0 :
+                sampled_ids = np.random.choice(size, num_shot+1, replace=False)
+                sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
+                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
+                input_text = few_shot_example + "\n\n\n\n" + input_text
+
+            input_id = self.tokenizer(
+                input_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            if num_shot > 0 :
+                input_id = self._truncate(input_id)
+            attention_mask = [1]*len(input_id)
+
+            input_ids.append(input_id)
+            attention_masks.append(attention_mask)
+            labels.append(target_text)
+
+        datasets["input_ids"] = input_ids
+        datasets["attention_mask"] = attention_masks
+        datasets["labels"] = labels
+
+        return datasets
+
+
+
+class TruthfulQAGenerationPreprocessor :
+    def __init__(self, 
+        tokenizer: LlamaTokenizer,
+        sequence_max_length: int,
+    ) :       
+        self.tokenizer = tokenizer
+        self.sequence_max_length = sequence_max_length
+
+    def _make_few_shot_example(self, datasets: List[Dict[str, Any]], sampled_ids: List[int]) :
+        questions = datasets["question"]
+        answers = datasets["best_answer"]
+
+        examples = []
+        for i in sampled_ids :
+            question = questions[i]
+            answer = answers[i]
+
+            input_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n{answer}"
+            examples.append(input_text)
+
+        few_shot_example = "\n\n\n\n".join(examples)
+        return few_shot_example
+
+    def _truncate(self, input_ids: List[int]) :
+        input_ids = input_ids[-self.sequence_max_length:]
+        input_string = self.tokenizer.decode(input_ids)
+
+        input_shots = input_string.split("\n\n\n\n")
+        if input_shots[0][:3] != "###" :
+            input_shots = input_shots[1:]
+
+        truncated_input_string = "\n\n\n\n".join(input_shots)
+        truncated_input_id = self.tokenizer(
+            truncated_input_string, 
+            max_length=self.sequence_max_length,
+            truncation='do_not_truncate',
+            add_special_tokens=False
+        ).input_ids
+
+        return truncated_input_id
+
+    def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int) :
+        questions = datasets["question"]
+        correct_answers = datasets["correct_answers"]
+
+        input_ids, attention_masks, labels = [], [], []
+
+        size = len(questions)
+        for i in range(size) :
+            
+            question = questions[i]
+            correct_answer = correct_answers[i]
+
+            input_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n"
+            target_texts = correct_answer
+
+            if num_shot > 0 :
+                sampled_ids = np.random.choice(size, num_shot+1, replace=False)
+                sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
+                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
+                input_text = few_shot_example + "\n\n\n\n" + input_text
+
+            input_id = self.tokenizer(
+                input_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            if num_shot > 0 :
+                input_id = self._truncate(input_id)
+            attention_mask = [1]*len(input_id)
+
+            input_ids.append(input_id)
+            attention_masks.append(attention_mask)
+            labels.append(target_texts)
+
+        datasets["input_ids"] = input_ids
+        datasets["attention_mask"] = attention_masks
+        datasets["labels"] = labels
+
+        return datasets
+
+
+class TruthfulQAMultipleChoicePreprocessor :
+    def __init__(self, 
+        tokenizer: LlamaTokenizer,
+        sequence_max_length: int,
+    ) :       
+        self.tokenizer = tokenizer
+        self.sequence_max_length = sequence_max_length
+
+    def _make_few_shot_example(self, datasets: List[Dict[str, Any]], sampled_ids: List[int]) :
+        questions = datasets["question"]
+        mc1_targets = datasets["mc1_targets"]
+
+        examples = []
+        for i in sampled_ids :
+            question = questions[i]
+            mc1_target = mc1_targets[i]
+
+            candidates = " ".join([f"({i}): {e}" for i, e in enumerate(mc1_target["choices"])])
+            target_id = mc1_target["labels"].index(1)
+            target_text = mc1_target["choices"][target_id]
+
+            input_text = f"### QUESTION:\n{question}\n\n### CHOICES:\n{candidates}### ANSWER:\n{target_text}"
+            examples.append(input_text)
+
+        few_shot_example = "\n\n\n\n".join(examples)
+        return few_shot_example
+
+    def _truncate(self, input_ids: List[int]) :
+        input_ids = input_ids[-self.sequence_max_length:]
+        input_string = self.tokenizer.decode(input_ids)
+
+        input_shots = input_string.split("\n\n\n\n")
+        if input_shots[0][:3] != "###" :
+            input_shots = input_shots[1:]
+
+        truncated_input_string = "\n\n\n\n".join(input_shots)
+        truncated_input_id = self.tokenizer(
+            truncated_input_string, 
+            max_length=self.sequence_max_length,
+            truncation='do_not_truncate',
+            add_special_tokens=False
+        ).input_ids
+
+        return truncated_input_id
+
+    def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int) :
+        questions = datasets["question"]
+        mc1_targets = datasets["mc1_targets"]
+
+        input_ids, attention_masks, labels = [], [], []
+
+        size = len(questions)
+        for i in range(size) :
+            question = questions[i]
+            mc1_target = mc1_targets[i]
+            candidates = " ".join([f"({i}): {e}" for i, e in enumerate(mc1_target["choices"])])
+
+            input_text = f"### QUESTION:\n{question}\n\n### CHOICES:\n{candidates}### ANSWER:\n"
+            target_id = mc1_target["labels"].index(1)
+            target_text = mc1_target["choices"][target_id]
 
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)

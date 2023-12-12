@@ -121,26 +121,34 @@ class Trainer :
             )
 
             eval_predictions = []
-            for eval_data in tqdm(eval_loader) :
-                input_ids = eval_data["input_ids"]
-                sequence_length = input_ids[0].tolist().index(self.tokenizer.pad_token_id) - 1
 
-                output_state = generate_step(jax_params, input_ids, sequence_length)
+            eval_steps = len(eval_labels)
+            with tqdm(total=eval_steps, desc="Evaluation", leave=False) as progress_bar_eval :
 
-                output_ids, sequence_end_length = output_state
-                output_sequence = self.tokenizer.decode(output_ids[0][sequence_length+1:sequence_end_length])
-                output_sequence = output_sequence.split("\n\n\n\n")[0]
+                for eval_data in tqdm(eval_loader) :
+                    input_ids = eval_data["input_ids"]
+                    sequence_length = input_ids[0].tolist().index(self.tokenizer.pad_token_id) - 1
 
-                eval_predictions.append(output_sequence)
+                    output_state = generate_step(jax_params, input_ids, sequence_length)
 
-            if dataset_name == "ai2_arc" or dataset_name == "Rowan/hellaswag" :
-                metric = insturction_metrics.get_multiple_choice_accuracy(eval_predictions, eval_labels)
-            elif dataset_name == "gsm8k" :
-                metric = insturction_metrics.get_gsm8k_accuracy(eval_predictions, eval_labels)
-            else :
-                raise NameError("Not valid evaluation dataset name")
+                    output_ids, sequence_end_length = output_state
+                    output_sequence = self.tokenizer.decode(output_ids[0][sequence_length+1:sequence_end_length])
+                    output_sequence = output_sequence.split("\n\n\n\n")[0]
 
-            logging.info(f"Evaluation dataset name : {dataset_name} | Accuracy : {metric}")
+                    eval_predictions.append(output_sequence)
+
+                    progress_bar_eval.update(1)
+
+                if dataset_name == "ai2_arc" or dataset_name == "Rowan/hellaswag" :
+                    metric = insturction_metrics.get_multiple_choice_accuracy(eval_predictions, eval_labels)
+                elif dataset_name == "gsm8k" :
+                    metric = insturction_metrics.get_gsm8k_accuracy(eval_predictions, eval_labels)
+                elif dataset_name == "truthful_qa-generation" :
+                    metric = insturction_metrics.get_truthful_qa_blue(eval_predictions, eval_labels)
+                else :
+                    raise NameError("Not valid evaluation dataset name")
+
+                logging.info(f"Evaluation dataset name : {dataset_name} | Accuracy : {metric}")
 
     def train(self, ) :
         optimizer_update = self.optimizer.update
@@ -210,7 +218,7 @@ class Trainer :
                     progress_bar_train.update(1)
 
                     if training_step_ptr % self.args.logging_steps == 0 :
-                        logging.info(f"Train [Step : {training_step_ptr}] | Loss: {round(train_metric['loss'].mean(), 3)}, Learning Rate: {round(train_metric['learning_rate'].mean(), 9)}")
+                        logging.info(f"Train [Step : %s] | Loss: %e, Learning Rate: %e" %(training_step_ptr, train_metric["loss"].mean(), train_metric["learning_rate"]))
 
                     if self.args.evaluation_strategy == "steps" :
                         if training_step_ptr % self.args.eval_steps == 0 :
