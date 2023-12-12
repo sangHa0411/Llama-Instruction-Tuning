@@ -78,7 +78,7 @@ class Trainer :
         # tensorboard for logging
         self.writer = SummaryWriter(log_dir=args.logging_path)
 
-    def evaluate(self, trainin_step: int) :
+    def evaluate(self, trainin_step: int = 0) :
         jax_params = self.params
         jax_model = self.model
 
@@ -110,7 +110,7 @@ class Trainer :
         logging.info("Evaluation Starts")
         for dataset_name in self.eval_datasets :
             eval_dataset = self.eval_datasets[dataset_name]
-            logging.info(f"Evaluation dataset name : {dataset_name} | dataset information : {eval_dataset}")
+            logging.info(f"Evaluation dataset name : {dataset_name} | dataset information : {eval_dataset}\n")
 
             eval_labels = eval_dataset["labels"]
             eval_dataset = eval_dataset.remove_columns(["labels"])
@@ -129,7 +129,7 @@ class Trainer :
             eval_steps = len(eval_labels)
             with tqdm(total=eval_steps, desc="Evaluation", leave=False) as progress_bar_eval :
 
-                for eval_data in tqdm(eval_loader) :
+                for eval_data in eval_loader :
                     input_ids = eval_data["input_ids"]
                     sequence_length = input_ids[0].tolist().index(self.tokenizer.pad_token_id) - 1
 
@@ -143,7 +143,7 @@ class Trainer :
 
                     progress_bar_eval.update(1)
 
-                if dataset_name == "ai2_arc" or dataset_name == "Rowan/hellaswag" :
+                if dataset_name in ["arc", "hellaswag", "truthful_qa-multiple_choice"] :
                     metric = insturction_metrics.get_multiple_choice_accuracy(eval_predictions, eval_labels)
                 elif dataset_name == "gsm8k" :
                     metric = insturction_metrics.get_gsm8k_accuracy(eval_predictions, eval_labels)
@@ -152,7 +152,7 @@ class Trainer :
                 else :
                     raise NameError("Not valid evaluation dataset name")
 
-                logging.info(f"Evaluation dataset name : {dataset_name} | Accuracy : {metric}")
+                logging.info(f"Evaluation dataset name : {dataset_name} | Accuracy : {metric}\n")
 
                 for key in metric :
                     score = metric[key]
@@ -198,7 +198,7 @@ class Trainer :
         num_epoch = self.args.num_train_epochs
         train_batch_size = self.args.per_device_train_batch_size
 
-        logging.info("Training Starts")
+        logging.info("Training Starts\n")
         for epoch in tqdm(range(num_epoch)) :
 
             rng, dropout_rng = jax.random.split(rng)
@@ -229,7 +229,7 @@ class Trainer :
                     if training_step_ptr % self.args.logging_steps == 0 :
                         train_loss = train_metric["loss"].mean().item()
                         learning_rate = train_metric["learning_rate"].item()
-                        logging.info(f"Train [Step : %s] | Loss: %.8f & Learning Rate: %e" %(training_step_ptr, train_loss, learning_rate))
+                        logging.info(f"Train [Step : %s] | Loss: %.8f & Learning Rate: %e\n" %(training_step_ptr, train_loss, learning_rate))
 
                         self.writer.add_scalar("train/loss", train_loss, global_step=training_step_ptr)
                         self.writer.add_scalar("train/learning_rate", learning_rate, global_step=training_step_ptr)

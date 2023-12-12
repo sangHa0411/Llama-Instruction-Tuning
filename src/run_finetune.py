@@ -55,8 +55,6 @@ def get_model_and_tokenizer(args) -> Tuple[LlamaConfig, LlamaForCausalLM, LlamaT
 
 def train(args):
 
-    os.environ["WANDB_PROJECT"] = args.project_name
-
     # Loading config, model and tokenizer
     config, torch_model, tokenizer = get_model_and_tokenizer(args)
 
@@ -136,18 +134,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Llama-Instruction-Tuning")
 
     # Dataset names
-    parser.add_argument("--instruction_datasets", type=str, default="[alpaca,cot-collection]", help="instruction datasets")
-    parser.add_argument("--dataset_sizes", type=str, default="[1.0,0.1]", help="instruction dataset ratios")
-    parser.add_argument("--evaluation_datasets", type=str, default="[ai2_arc,Rowan/hellaswag]", help="evaluation datasets")
+    parser.add_argument("--instruction_datasets", type=str, default="[alpaca,cot-collection]", help="instruction datasets | possible datasets [alpaca, cot-collections, slimorca, openorca-multiplechoice, arc, gsm8k]")
+    parser.add_argument("--dataset_sizes", type=str, default="[1.0,10%]", help="instruction dataset ratios")
+    parser.add_argument("--evaluation_datasets", type=str, default="[ai2_arc,Rowan/hellaswag]", help="evaluation datasets | possible datasets [arc, hellaswag, gsm8k, truthful_qa]")
     parser.add_argument("--evaluation_shots", type=str, default="[0,0]", help="shot size for evaluation")
 
-    # Wandb logging name
-    parser.add_argument("--entity_name", type=str, default="sangha0411", help="wandb entity name")
-    parser.add_argument("--project_name", type=str, default="llama-instruction-tuning", help="project's name")
+    # Model Name
     parser.add_argument("--model_name", type=str, default="llama/llama-2-7b-hf", help="model's name")
-    parser.add_argument("--group_name", type=str, default="instruction-tuning", help="group's name")
     parser.add_argument("--run_name", type=str, default=None, help="A descriptor for the run. used for wandb logging")
-    parser.add_argument("--report_to", type=str, default=None, help="""The list of integrations to report the results and logs to. Supported platforms are ['azure_ml, 'comet_ml, 'mlflow, tensorboard", 'wandb']""")
 
     # Random Seed
     parser.add_argument("--random_seed", type=int, default=42, help="fix random seed in torch, random, numpy")
