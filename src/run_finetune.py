@@ -7,15 +7,15 @@ import numpy as np
 from pytz import timezone
 from typing import Tuple
 from datetime import datetime
-from trainer import Trainer
+from utils.trainer import Trainer
 from jax.sharding import Mesh
 from jax.experimental import mesh_utils
-from utils.collator import Seq2SeqCollator
-from utils.convert import ParameterConvertor
+from data.collator import Seq2SeqCollator
+from model.convert import ParameterConvertor
 from utils.loader import InstructionDatasetLoader, EvalDatasetLoader
 from utils.preprocessor import InstructionDatasetPreprocessor
-from utils.eval_preprocessor import EvaluationDatasetPreprocessor
-from utils.collator import Seq2SeqCollator
+from eval.eval_preprocessor import EvaluationDatasetPreprocessor
+from data.collator import Seq2SeqCollator
 from model.llama_model import FlaxLlaMaForCausalLM
 from datasets import disable_caching
 from transformers import (
@@ -49,7 +49,8 @@ def get_model_and_tokenizer(args) -> Tuple[LlamaConfig, LlamaForCausalLM, LlamaT
 
     # Load torch model
     logging.info("Load huggingface model")
-    torch_model = LlamaForCausalLM.from_pretrained(model_path, cache_dir="/mnt/disks-standard/persist/huggingface")
+    # torch_model = LlamaForCausalLM.from_pretrained(model_path, cache_dir="/mnt/disks-standard/persist/huggingface")
+    torch_model = None
 
     return config, torch_model, tokenizer
 
@@ -67,7 +68,7 @@ def train(args):
 
     # Loading Dataset
     ## Train Dataset
-    train_dataset_loader = InstructionDatasetLoader(args.random_seed, args.instruction_datasets, args.dataset_ratios)
+    train_dataset_loader = InstructionDatasetLoader(args.random_seed, args.instruction_datasets, args.dataset_sizes)
     instruction_dataset = train_dataset_loader.load()
     logging.info(f"Instruction dataset:{instruction_dataset}")
     
@@ -87,8 +88,6 @@ def train(args):
     encoded_evaluation_dataset = eval_preprocessor(args.evaluation_datasets, args.evaluation_shots, evaluation_dataset)
     logging.info(f"Encoded dataset:{encoded_evaluation_dataset}")
     
-    breakpoint()
-
     # Setting Device & Model mesh
     num_tpu_device = jax.device_count()
     tpu_devices = jax.local_devices()
@@ -137,7 +136,7 @@ if __name__ == "__main__":
 
     # Dataset names
     parser.add_argument("--instruction_datasets", type=str, default="[alpaca,cot-collection]", help="instruction datasets")
-    parser.add_argument("--dataset_ratios", type=str, default="[1.0,0.1]", help="instruction dataset ratios")
+    parser.add_argument("--dataset_sizes", type=str, default="[1.0,0.1]", help="instruction dataset ratios")
     parser.add_argument("--evaluation_datasets", type=str, default="[ai2_arc,Rowan/hellaswag]", help="evaluation datasets")
     parser.add_argument("--evaluation_shots", type=str, default="[0,0]", help="shot size for evaluation")
 
@@ -167,8 +166,10 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir", type=str, default="/mnt/disks-standard/persist/t5/llama-alpaca/exps/checkpoints", help="model checkpoint path")
 
     # Model evaluation & save strategy
-    parser.add_argument("--do_model_save", type=bool, default=False, help="do model saving during training")
-    parser.add_argument("--do_model_evaluate", type=bool, default=False, help="do model evalution during training")
+    parser.add_argument("--evaluation_strategy", type=str, default="epoch", help="do model evaluation during training")
+    parser.add_argument("--eval_steps", type=int, default=1000, help="every this size training step, do model evaluation")
+    parser.add_argument("--save_strategy", type=str, default="epoch", help="do model save during training")
+    parser.add_argument("--save_steps", type=int, default=1000, help="every this size training step, do model save")
 
     # Model & Tokenizer path
     parser.add_argument("--tokenizer_path", type=str, default="/mnt/disks-standard/persist/llama/llama-2-7b-hf", help="path for evaluation prediction results")

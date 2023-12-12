@@ -51,6 +51,12 @@ class InstructionDatasetLoader :
                 dataset = Dataset.from_pandas(train_df)
                 dataset = dataset.shuffle(self.random_seed).select(range(num_data))
 
+            elif "beaugogh/openorca-multiplechoice-10k" == data :
+                dataset_path = "beaugogh/openorca-multiplechoice-10k"
+
+                dataset = load_dataset(dataset_path, split="train", cache_dir="/mnt/disks-standard/persist/huggingface")
+                dataset = dataset.shuffle(self.random_seed).select(range(num_data))
+
             else :
                 raise NameError("Not valid dataset name")
             

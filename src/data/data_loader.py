@@ -3,7 +3,7 @@ import jax
 import math
 import numpy as np
 from datasets import Dataset
-from utils.collator import Seq2SeqCollator
+from data.collator import Seq2SeqCollator
 
 
 def data_loader(
