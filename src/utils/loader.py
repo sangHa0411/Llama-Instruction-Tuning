@@ -86,7 +86,6 @@ class InstructionDatasetLoader :
                 num_data = int(self.ratios[i])
 
             dataset = dataset.select(range(num_data))
-
             datasets[dataset_name] = dataset
         return datasets
 

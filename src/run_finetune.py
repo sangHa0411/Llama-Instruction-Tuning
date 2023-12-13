@@ -45,18 +45,18 @@ def get_model_and_tokenizer(args) -> Tuple[LlamaConfig, LlamaForCausalLM, LlamaT
     # Load tokenizer
     tokenizer = LlamaTokenizer.from_pretrained(args.tokenizer_path)
     tokenizer.pad_token_id = 0
-    tokenizer.padding_side = "right"
+    tokenizer.padding_side = "left"
 
-    # Load torch model
+    # Load huggingface model
     logging.info("Load huggingface model")
-    torch_model = LlamaForCausalLM.from_pretrained(model_path, cache_dir="/mnt/disks-standard/persist/huggingface")
+    hf_model = LlamaForCausalLM.from_pretrained(model_path, cache_dir="/mnt/disks-standard/persist/huggingface")
 
-    return config, torch_model, tokenizer
+    return config, hf_model, tokenizer
 
 def train(args):
 
     # Loading config, model and tokenizer
-    config, torch_model, tokenizer = get_model_and_tokenizer(args)
+    config, hf_model, tokenizer = get_model_and_tokenizer(args)
 
     # Setting random seed
     seed_everything(args.random_seed)
@@ -93,9 +93,9 @@ def train(args):
     logging.info(f"The number of tpu device:{num_tpu_device}")
     logging.info(f"Tpu devices:{tpu_devices}")
 
-    # Extracting model weights from huggingface model
+    # Extracting model parameters from huggingface model
     parameter_convertor = ParameterConvertor(mesh, config, tokenizer)
-    params = parameter_convertor(torch_model)
+    params = parameter_convertor(hf_model)
     
     # Data Collator
     data_collator = Seq2SeqCollator(tokenizer, sequence_max_length=args.sequence_max_length)
@@ -108,6 +108,7 @@ def train(args):
         args=args, 
         model=model, 
         params=params, 
+        mesh=mesh,
         tokenizer=tokenizer,
         dataset=encoded_instruction_dataset, 
         eval_datasets=encoded_evaluation_datasets,
@@ -172,7 +173,8 @@ if __name__ == "__main__":
 
     # Epoch & Batch size
     parser.add_argument("--num_train_epochs", type=int, default=3, help="num_train_epochs for training")
-    parser.add_argument("--per_device_train_batch_size", type=int, default=2, help="training batch size")
+    parser.add_argument("--per_device_train_batch_size", type=int, default=4, help="training batch size")
+    parser.add_argument("--per_device_eval_batch_size", type=int, default=4, help="evaluation batch size")
 
     # Optimizer
     parser.add_argument("--learning_rate", type=float, default=5e-6, help="dataset")

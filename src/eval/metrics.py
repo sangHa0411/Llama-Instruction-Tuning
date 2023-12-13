@@ -16,7 +16,7 @@ class InstructionMetrics :
                 total_acc += 1
 
         total_acc = total_acc / len(predictions)
-        return total_acc
+        return {"acc" : total_acc}
 
     def get_gsm8k_accuracy(self, predictions: List[str], labels: List[str]) :
         assert len(predictions) == len(labels)
@@ -30,7 +30,7 @@ class InstructionMetrics :
                 total_acc += 1
 
         total_acc = total_acc / len(predictions)
-        return total_acc
+        return {"acc" : total_acc}
 
     def get_truthful_qa_blue(self, predictions: List[str], labels: List[List[str]]) :
         assert len(predictions) == len(labels)
@@ -41,4 +41,4 @@ class InstructionMetrics :
             total_blue += score["bleu"]
 
         total_blue = total_blue / len(predictions)
-        return total_blue
+        return {"blue" : total_blue}

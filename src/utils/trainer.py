@@ -4,16 +4,20 @@ import logging
 import numpy as np
 import jax.numpy as jnp
 from typing import Dict, Any, Tuple
+from jax.sharding import Mesh
 from pytz import timezone
 from datetime import datetime
 from datasets import Dataset
 from jaxtyping import PyTree
 from utils.loss import loss_fn
+from jax.sharding import PartitionSpec as PS
 from data.data_loader import data_loader
 from data.collator import Seq2SeqCollator
 from eval.metrics import InstructionMetrics
 from model.llama_model import FlaxLlaMaForCausalLM
 from transformers import LlamaTokenizer
+from transformers.generation import GenerationConfig
+from model.partitions import with_named_sharding_constraint
 from utils.scheduler import create_constant_lr_scheduler, create_linear_decay_lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -29,6 +33,7 @@ class Trainer :
         args, 
         model: FlaxLlaMaForCausalLM, 
         params: PyTree[np.ndarray], 
+        mesh: Mesh,
         tokenizer: LlamaTokenizer,
         dataset: Dataset,
         eval_datasets: Dict[str, Dataset],
@@ -38,12 +43,13 @@ class Trainer :
         self.args = args
         self.model = model
         self.params = params
+        self.mesh = mesh
         self.tokenizer = tokenizer
         self.dataset = dataset
         self.eval_datasets = eval_datasets
         self.data_collator = data_collator
 
-        # Train & Eval Batch size
+        # Train Batch Size
         train_batch_size = args.per_device_train_batch_size
 
         # Scheduler
@@ -85,24 +91,30 @@ class Trainer :
         insturction_metrics = InstructionMetrics()
 
         @jax.jit
-        def generate_step(params, input_ids: jnp.ndarray, sequence_length: int):
+        def generate_step(params, input_ids: jnp.ndarray, attention_mask: jnp.array) :
+            pad_ids = jnp.ones(
+                (input_ids.shape[0], self.args.generation_max_length), 
+                dtype=jnp.int32
+            )
+            input_ids = jnp.concatenate((pad_ids * self.tokenizer.pad_token_id, input_ids), axis=1)
+            attention_mask = jnp.concatenate((pad_ids * 0, attention_mask), axis=1)
+            
+            def body_fn(_: int, input_state: Tuple[jnp.ndarray, jnp.ndarray]) :
+                input_ids, attention_mask = input_state
 
-            pad_ids = jnp.ones((1, self.args.generation_max_length), dtype=jnp.int32) * self.tokenizer.pad_token_id
-            input_ids = jnp.concatenate((input_ids, pad_ids), axis=1)
+                logits = jax_model(input_ids=input_ids, attention_mask=attention_mask, params=params, train=False)[0]
+                pred = jnp.argmax(logits[:, -1, :], axis=-1)
+                attn = jnp.ones((input_ids.shape[0], ), dtype=jnp.int32)
 
-            def body_fn(n: int, input_state: Tuple[jnp.ndarray, int]) :
-                sub_input_ids, sequence_last_pos = input_state
-                logits = jax_model(input_ids=sub_input_ids, params=params, train=False)[0]
+                input_ids = jnp.roll(input_ids, -1, 1).at[:, -1].set(pred)
+                attention_mask = jnp.roll(attention_mask, -1, 1).at[:, -1].set(attn)
 
-                pred = jnp.argmax(logits[0, sequence_last_pos, :])
-                sub_input_ids = sub_input_ids.at[0, sequence_last_pos+1].set(pred)
-
-                input_state = (sub_input_ids, sequence_last_pos+1)
+                input_state = (input_ids, attention_mask)
                 return input_state
 
-            input_state = (input_ids, sequence_length-1)
-            output_state = jax.lax.fori_loop(lower=0, upper=self.args.generation_max_length, body_fun=body_fn, init_val=input_state)
-            return output_state
+            input_state = (input_ids, attention_mask)
+            output_ids = jax.lax.fori_loop(lower=0, upper=self.args.generation_max_length, body_fun=body_fn, init_val=input_state)
+            return output_ids
 
         rng = jax.random.PRNGKey(self.args.random_seed)
         rng, dropout_rng = jax.random.split(rng)
@@ -119,11 +131,10 @@ class Trainer :
                 rng=dropout_rng, 
                 dataset=eval_dataset, 
                 data_collator=self.data_collator,
-                batch_size=1, 
+                batch_size=self.args.per_device_eval_batch_size, 
                 shuffle=False,
                 drop_last=False
             )
-
             eval_predictions = []
 
             eval_steps = len(eval_labels)
@@ -131,15 +142,14 @@ class Trainer :
 
                 for eval_data in eval_loader :
                     input_ids = eval_data["input_ids"]
-                    sequence_length = input_ids[0].tolist().index(self.tokenizer.pad_token_id) - 1
+                    attention_mask = eval_data["attention_mask"]
 
-                    output_state = generate_step(jax_params, input_ids, sequence_length)
+                    output_state = generate_step(jax_params, input_ids, attention_mask)
+                    output_ids, _ = output_state
+                    output_ids = output_ids[:, -self.args.generation_max_length:]
 
-                    output_ids, sequence_end_length = output_state
-                    output_sequence = self.tokenizer.decode(output_ids[0][sequence_length+1:sequence_end_length])
-                    output_sequence = output_sequence.split("\n\n\n\n")[0]
-
-                    eval_predictions.append(output_sequence)
+                    output_sequences = [seq.split("\n\n\n\n")[0] for seq in self.tokenizer.batch_decode(output_ids)]
+                    eval_predictions.extend(output_sequences)
 
                     progress_bar_eval.update(1)
 
@@ -213,8 +223,7 @@ class Trainer :
 
             train_steps = len(self.dataset["input_ids"]) // train_batch_size
             with tqdm(total=train_steps, desc="Training", leave=False) as progress_bar_train :
-                for train_data in train_loader :
-                    
+                for train_data in train_loader :                    
                     jax_params, opt_state, dropout_rng, train_metric = train_step(
                         params=jax_params, 
                         opt_state=opt_state, 
