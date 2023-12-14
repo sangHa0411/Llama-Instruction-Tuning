@@ -32,11 +32,11 @@ class EvaluationDatasetPreprocessor :
             "winogrande" : EvalWinograndePreprocessor(tokenizer, sequence_max_length),
         }
 
-    def __call__(self, dataset_names: str, num_shots: str, datasets: Dict[str, Dataset]) -> Dict[str, Dataset] :
-        dataset_names = dataset_names[1:-1].split(",")
+    def __call__(self, num_shots: str, datasets: Dict[str, Dataset]) -> Dict[str, Dataset] :
         num_shots = num_shots[1:-1].split(",")
         num_shots = [int(shot) for shot in num_shots]
 
+        dataset_names = list(datasets.keys())
         assert len(dataset_names) == len(num_shots)
         
         preprocessed_datasets = {}
@@ -562,7 +562,7 @@ class EvalWinograndePreprocessor :
             answer = answers[i]
             answer_text = option1 if answer == 1 else option2
             
-            all_text = f"### SENTENCE:\n{sentence}\n\n### OPTION1:\n{option1}\n\n### OPTION2:\n{option2}\n\n### ANSWER:\n"
+            input_text = f"### SENTENCE:\n{sentence}\n\n### OPTION1:\n{option1}\n\n### OPTION2:\n{option2}\n\n### ANSWER:\n"
 
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
@@ -571,7 +571,7 @@ class EvalWinograndePreprocessor :
                 input_text = few_shot_example + "\n\n\n\n" + input_text
 
             input_id = self.tokenizer(
-                all_text, 
+                input_text, 
                 max_length=self.sequence_max_length,
                 truncation='do_not_truncate',
                 add_special_tokens=False

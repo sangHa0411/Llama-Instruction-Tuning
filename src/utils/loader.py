@@ -146,6 +146,7 @@ class EvalDatasetLoader :
 
                 dataset = load_dataset(dataset_path, dataset_name, cache_dir="/mnt/disks-standard/persist/huggingface")
                 dataset = dataset["validation"]
+                dataset_name = "winogrande"
 
             else :
                 raise NameError("Not valid dataset name")

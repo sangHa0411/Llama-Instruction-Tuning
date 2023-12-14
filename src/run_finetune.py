@@ -77,12 +77,12 @@ def train(args):
     # Preprocessing and Encodign Dataset
     ## Train Dataset
     train_preprocessor = InstructionDatasetPreprocessor(tokenizer=tokenizer, sequence_max_length=args.sequence_max_length)
-    encoded_instruction_dataset = train_preprocessor(args.instruction_datasets, instruction_dataset)
+    encoded_instruction_dataset = train_preprocessor(instruction_dataset)
     logging.info(f"Encoded dataset:{encoded_instruction_dataset}")
 
     ## Evaluation Dataset
     eval_preprocessor = EvaluationDatasetPreprocessor(tokenizer=tokenizer, sequence_max_length=args.sequence_max_length)
-    encoded_evaluation_datasets = eval_preprocessor(args.evaluation_datasets, args.evaluation_shots, evaluation_dataset)
+    encoded_evaluation_datasets = eval_preprocessor(args.evaluation_shots, evaluation_dataset)
     logging.info(f"Encoded dataset:{encoded_evaluation_datasets}")
     
     # Setting Device & Model mesh

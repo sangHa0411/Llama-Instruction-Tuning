@@ -34,8 +34,8 @@ class InstructionDatasetPreprocessor :
             "winogrande" : WinograndePreprocessor(tokenizer, sequence_max_length, label_pad_token_id)
         }
 
-    def __call__(self, dataset_names: str, datasets: Dict[str, Dataset]) -> Dataset :
-        dataset_names = dataset_names[1:-1].split(",")
+    def __call__(self, datasets: Dict[str, Dataset]) -> Dataset :
+        dataset_names = list(datasets.keys())
 
         preprocessed_datasets = []
         for dataset_name in dataset_names :
