@@ -82,34 +82,6 @@ class Trainer :
         # tensorboard for logging
         self.writer = SummaryWriter(log_dir=args.logging_path)
 
-    def prepare_model_inputs_for_generation(self, model: FlaxLlaMaForCausalLM, input_ids: jnp.ndarray, attention_mask: jnp.ndarray) :
-        num_hidden_layers =  model.config.num_hidden_layers
-        num_attention_heads = model.config.num_attention_heads
-        hidden_size = model.config.hidden_size
-
-        past_key_values = {
-            "model" : {
-                "layers" : {
-                    str(layer) : {
-                        "self_attn" : {
-                            "cache_index" : jnp.zeros((), dtype=jnp.int32),
-                            "cached_key" : jnp.zeros((input_ids.shape[0], input_ids.shape[1], num_attention_heads, hidden_size//num_attention_heads), dtype=jnp.float32),
-                            "cached_value" : jnp.zeros((input_ids.shape[0], input_ids.shape[1], num_attention_heads, hidden_size//num_attention_heads), dtype=jnp.float32),
-                        }
-                    }
-                    for layer in range(num_hidden_layers)
-                }
-            }
-        }
-        position_ids = attention_mask.cumsum(axis=-1) - 1
-
-        model_inputs = {
-            "input_ids" : input_ids,
-            "attention_mask" : attention_mask,
-            "position_ids" : position_ids,
-            "past_key_values" : past_key_values
-        }
-        return model_inputs
 
     def evaluate(self, trainin_step: int = 0) :
         jax_params = self.params
