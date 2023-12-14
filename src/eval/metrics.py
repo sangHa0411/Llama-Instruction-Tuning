@@ -24,7 +24,7 @@ class InstructionMetrics :
         total_acc = 0
         for p, l in zip(predictions, labels) :
             p_tgt = p.split("###")[-1].strip()
-            l_tgt = p.split("###")[-1].strip()
+            l_tgt = l.split("###")[-1].strip()
 
             if p_tgt == l_tgt :
                 total_acc += 1
@@ -35,10 +35,6 @@ class InstructionMetrics :
     def get_truthful_qa_blue(self, predictions: List[str], labels: List[List[str]]) :
         assert len(predictions) == len(labels)
 
-        total_blue = 0
-        for p, l in zip(predictions, labels) :
-            score = self.bleu_scorer.compute(predictions=p, references=l)
-            total_blue += score["bleu"]
-
-        total_blue = total_blue / len(predictions)
-        return {"blue" : total_blue}
+        score = self.bleu_scorer.compute(predictions=predictions, rferences=labels)
+        total_bleu = score["bleu"]
+        return {"blue" : total_bleu}
