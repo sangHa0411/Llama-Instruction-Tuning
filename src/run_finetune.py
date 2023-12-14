@@ -45,7 +45,7 @@ def get_model_and_tokenizer(args) -> Tuple[LlamaConfig, LlamaForCausalLM, LlamaT
     # Load tokenizer
     tokenizer = LlamaTokenizer.from_pretrained(args.tokenizer_path)
     tokenizer.pad_token_id = 0
-    tokenizer.padding_side = "left"
+    tokenizer.padding_side = args.padding_side
 
     # Load huggingface model
     logging.info("Load huggingface model")
@@ -170,6 +170,9 @@ if __name__ == "__main__":
     # Model & Tokenizer path
     parser.add_argument("--tokenizer_path", type=str, default="/mnt/disks-standard/persist/llama/llama-2-7b-hf", help="path for evaluation prediction results")
     parser.add_argument("--model_path", type=str, default="/mnt/disks-standard/persist/llama/llama-2-7b-hf", help="path for evaluation prediction results")
+
+    # Tokenizer padding side
+    parser.add_argument("--padding_side", type=str, default="left", help="tokenizer padding side | possible sides [left, right]")
 
     # Epoch & Batch size
     parser.add_argument("--num_train_epochs", type=int, default=3, help="num_train_epochs for training")

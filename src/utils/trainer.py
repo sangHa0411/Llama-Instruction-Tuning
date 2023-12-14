@@ -3,21 +3,19 @@ import optax
 import logging
 import numpy as np
 import jax.numpy as jnp
-from typing import Dict, Any, Tuple
+from typing import Dict
 from jax.sharding import Mesh
 from pytz import timezone
 from datetime import datetime
 from datasets import Dataset
 from jaxtyping import PyTree
 from utils.loss import loss_fn
-from jax.sharding import PartitionSpec as PS
 from data.data_loader import data_loader
 from data.collator import Seq2SeqCollator
 from eval.metrics import InstructionMetrics
 from model.llama_model import FlaxLlaMaForCausalLM
 from transformers import LlamaTokenizer
 from transformers.generation import GenerationConfig
-from model.partitions import with_named_sharding_constraint
 from utils.scheduler import create_constant_lr_scheduler, create_linear_decay_lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -84,6 +82,35 @@ class Trainer :
         # tensorboard for logging
         self.writer = SummaryWriter(log_dir=args.logging_path)
 
+    def prepare_model_inputs_for_generation(self, model: FlaxLlaMaForCausalLM, input_ids: jnp.ndarray, attention_mask: jnp.ndarray) :
+        num_hidden_layers =  model.config.num_hidden_layers
+        num_attention_heads = model.config.num_attention_heads
+        hidden_size = model.config.hidden_size
+
+        past_key_values = {
+            "model" : {
+                "layers" : {
+                    str(layer) : {
+                        "self_attn" : {
+                            "cache_index" : jnp.zeros((), dtype=jnp.int32),
+                            "cached_key" : jnp.zeros((input_ids.shape[0], input_ids.shape[1], num_attention_heads, hidden_size//num_attention_heads), dtype=jnp.float32),
+                            "cached_value" : jnp.zeros((input_ids.shape[0], input_ids.shape[1], num_attention_heads, hidden_size//num_attention_heads), dtype=jnp.float32),
+                        }
+                    }
+                    for layer in range(num_hidden_layers)
+                }
+            }
+        }
+        position_ids = attention_mask.cumsum(axis=-1) - 1
+
+        model_inputs = {
+            "input_ids" : input_ids,
+            "attention_mask" : attention_mask,
+            "position_ids" : position_ids,
+            "past_key_values" : past_key_values
+        }
+        return model_inputs
+
     def evaluate(self, trainin_step: int = 0) :
         jax_params = self.params
         jax_model = self.model
@@ -92,29 +119,20 @@ class Trainer :
 
         @jax.jit
         def generate_step(params, input_ids: jnp.ndarray, attention_mask: jnp.array) :
-            pad_ids = jnp.ones(
-                (input_ids.shape[0], self.args.generation_max_length), 
-                dtype=jnp.int32
+            generations = jax_model.generate(
+                input_ids=input_ids, 
+                attention_mask=attention_mask, 
+                params=params, 
+                generation_config=GenerationConfig(
+                    num_beams=1, 
+                    do_sample=False, 
+                    max_length=input_ids.shape[1]+self.args.generation_max_length, 
+                    pad_token_id=self.tokenizer.eos_token_id, 
+                    eos_token_id=self.tokenizer.eos_token_id, 
+                ), 
             )
-            input_ids = jnp.concatenate((pad_ids * self.tokenizer.pad_token_id, input_ids), axis=1)
-            attention_mask = jnp.concatenate((pad_ids * 0, attention_mask), axis=1)
-            
-            def body_fn(_: int, input_state: Tuple[jnp.ndarray, jnp.ndarray]) :
-                input_ids, attention_mask = input_state
-
-                logits = jax_model(input_ids=input_ids, attention_mask=attention_mask, params=params, train=False)[0]
-                pred = jnp.argmax(logits[:, -1, :], axis=-1)
-                attn = jnp.ones((input_ids.shape[0], ), dtype=jnp.int32)
-
-                input_ids = jnp.roll(input_ids, -1, 1).at[:, -1].set(pred)
-                attention_mask = jnp.roll(attention_mask, -1, 1).at[:, -1].set(attn)
-
-                input_state = (input_ids, attention_mask)
-                return input_state
-
-            input_state = (input_ids, attention_mask)
-            output_ids = jax.lax.fori_loop(lower=0, upper=self.args.generation_max_length, body_fun=body_fn, init_val=input_state)
-            return output_ids
+            out_tokens = generations.sequences
+            return out_tokens
 
         rng = jax.random.PRNGKey(self.args.random_seed)
         rng, dropout_rng = jax.random.split(rng)
@@ -137,19 +155,22 @@ class Trainer :
             )
             eval_predictions = []
 
-            eval_steps = len(eval_labels)
+            if len(eval_labels) % self.args.per_device_eval_batch_size > 0 :
+                eval_steps = len(eval_labels) // self.args.per_device_eval_batch_size + 1
+            else :
+                eval_steps = len(eval_labels) // self.args.per_device_eval_batch_size
+    
             with tqdm(total=eval_steps, desc="Evaluation", leave=False) as progress_bar_eval :
 
                 for eval_data in eval_loader :
                     input_ids = eval_data["input_ids"]
                     attention_mask = eval_data["attention_mask"]
 
-                    output_state = generate_step(jax_params, input_ids, attention_mask)
-                    output_ids, _ = output_state
-                    output_ids = output_ids[:, -self.args.generation_max_length:]
+                    output_tokens = generate_step(jax_params, input_ids, attention_mask)
+                    generated = output_tokens[:, -self.args.generation_max_length:]
 
-                    output_sequences = [seq.split("\n\n\n\n")[0] for seq in self.tokenizer.batch_decode(output_ids)]
-                    eval_predictions.extend(output_sequences)
+                    generated_sequences = [seq.split("\n\n\n\n")[0] for seq in self.tokenizer.batch_decode(generated)]
+                    eval_predictions.extend(generated_sequences)
 
                     progress_bar_eval.update(1)
 
