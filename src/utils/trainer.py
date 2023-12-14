@@ -123,7 +123,7 @@ class Trainer :
                 data_collator=self.data_collator,
                 batch_size=self.args.per_device_eval_batch_size, 
                 shuffle=False,
-                drop_last=False
+                drop_last=True
             )
             eval_predictions = []
 
@@ -146,6 +146,7 @@ class Trainer :
 
                     progress_bar_eval.update(1)
 
+                eval_labels = eval_labels[:len(eval_predictions)]
                 if dataset_name in ["arc", "hellaswag", "truthful_qa-multiple_choice"] :
                     metric = insturction_metrics.get_multiple_choice_accuracy(eval_predictions, eval_labels)
                 elif dataset_name == "gsm8k" :
@@ -242,3 +243,5 @@ class Trainer :
 
             if self.args.evaluation_strategy == "epoch" :
                 self.evaluate(training_step_ptr)
+
+            breakpoint()

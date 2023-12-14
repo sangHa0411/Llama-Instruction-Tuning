@@ -30,7 +30,8 @@ class InstructionDatasetPreprocessor :
             "slimorca" : SlimOrcaPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
             "openorca-multiplechoice" : OpenOrcaMCPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
             "arc" : ArcPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
-            "gsm8k" : GSM8KPreprocessor(tokenizer, sequence_max_length, label_pad_token_id)
+            "gsm8k" : GSM8KPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
+            "winogrande" : WinograndePreprocessor(tokenizer, sequence_max_length, label_pad_token_id)
         }
 
     def __call__(self, dataset_names: str, datasets: Dict[str, Dataset]) -> Dataset :
@@ -386,6 +387,64 @@ class GSM8KPreprocessor :
             
             all_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n{answer}"
             source_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n"
+
+            all_input_id = self.tokenizer(
+                all_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            all_input_id = all_input_id + [self.tokenizer.eos_token_id]
+            attention_mask = [1]*len(all_input_id)
+
+            source_input_id = self.tokenizer(
+                source_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            source_input_id_length = len(source_input_id)
+            label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+
+            input_ids.append(all_input_id)
+            attention_masks.append(attention_mask)
+            labels.append(label)
+
+        datasets["input_ids"] = input_ids
+        datasets["attention_mask"] = attention_masks
+        datasets["labels"] = labels
+
+        return datasets
+
+
+class WinograndePreprocessor :
+    def __init__(self, 
+        tokenizer: LlamaTokenizer,
+        sequence_max_length: int,
+        label_pad_token_id: int = -100
+    ) :       
+        self.tokenizer = tokenizer
+        self.sequence_max_length = sequence_max_length
+        self.label_pad_token_id = label_pad_token_id
+
+    def preprocess(self, datasets: List[Dict[str, Any]]):
+        sentences = datasets["sentence"]
+        option1s = datasets["option1"]
+        option2s = datasets["option2"]
+        answers = datasets["answer"]
+
+        input_ids, attention_masks, labels = [], [], []
+
+        size = len(sentences)
+        for i in range(size) :
+            sentence = sentences[i]
+            option1 = option1s[i]
+            option2 = option2s[i]
+            answer = answers[i]
+            answer_text = option1 if answer == 1 else option2
+            
+            all_text = f"### SENTENCE:\n{sentence}\n\n### OPTION1:\n{option1}\n\n### OPTION2:\n{option2}\n\n### ANSWER:\n{answer_text}"
+            source_text = f"### SENTENCE:\n{sentence}\n\n### OPTION1:\n{option1}\n\n### OPTION2:\n{option2}\n\n### ANSWER:\n"
 
             all_input_id = self.tokenizer(
                 all_text, 

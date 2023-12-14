@@ -75,6 +75,15 @@ class InstructionDatasetLoader :
                 dataset = dataset["train"]
                 dataset = dataset.shuffle(self.random_seed)
 
+            elif "winogrande" in dataset_name :
+                dataset_path = "winogrande"
+                assert dataset_name in ["winogrande_xs", "winogrande_s", "winogrande_m", "winogrande_l", "winogrande_xl"]
+
+                dataset = load_dataset(dataset_path, dataset_name, cache_dir="/mnt/disks-standard/persist/huggingface")
+                dataset = dataset["train"]
+                dataset = dataset.shuffle(self.random_seed)
+                dataset_name = "winogrande"
+
             else :
                 raise NameError("Not valid dataset name")
 
@@ -129,6 +138,13 @@ class EvalDatasetLoader :
                 dataset_path = "truthful_qa"
 
                 dataset = load_dataset(dataset_path, category, cache_dir="/mnt/disks-standard/persist/huggingface")
+                dataset = dataset["validation"]
+
+            elif "winogrande" in dataset_name :
+                dataset_path = "winogrande"
+                assert dataset_name in ["winogrande_xs", "winogrande_s", "winogrande_m", "winogrande_l", "winogrande_xl"]
+
+                dataset = load_dataset(dataset_path, dataset_name, cache_dir="/mnt/disks-standard/persist/huggingface")
                 dataset = dataset["validation"]
 
             else :

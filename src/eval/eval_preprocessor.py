@@ -1,15 +1,12 @@
-import re
 import logging
-import pandas as pd
 import numpy as np
 import multiprocessing
 from functools import partial
 from typing import Dict, List, Any
 from pytz import timezone
 from datetime import datetime
-from datasets import Dataset, concatenate_datasets
+from datasets import Dataset
 from transformers import LlamaTokenizer
-from tqdm import tqdm
 
 logging.basicConfig(format = "[%(asctime)s][%(levelname)s][Message] - %(message)s", level = logging.INFO)
 logging.Formatter.converter = lambda *args: datetime.now(tz=timezone("Asia/Seoul")).timetuple()
@@ -27,11 +24,12 @@ class EvaluationDatasetPreprocessor :
         self.num_cores = multiprocessing.cpu_count() // 3
 
         self.preprocessors = {
-            "arc" : ArcPreprocessor(tokenizer, sequence_max_length),
-            "hellaswag" : HellaswagPreprocessor(tokenizer, sequence_max_length),
-            "gsm8k" : GSM8KPreprocessor(tokenizer, sequence_max_length),
-            "truthful_qa-generation" : TruthfulQAGenerationPreprocessor(tokenizer, sequence_max_length),
-            "truthful_qa-multiple_choice" : TruthfulQAMultipleChoicePreprocessor(tokenizer, sequence_max_length),
+            "arc" : EvalArcPreprocessor(tokenizer, sequence_max_length),
+            "hellaswag" : EvalHellaswagPreprocessor(tokenizer, sequence_max_length),
+            "gsm8k" : EvalGSM8KPreprocessor(tokenizer, sequence_max_length),
+            "truthful_qa-generation" : EvalTruthfulQAGenerationPreprocessor(tokenizer, sequence_max_length),
+            "truthful_qa-multiple_choice" : EvalTruthfulQAMultipleChoicePreprocessor(tokenizer, sequence_max_length),
+            "winogrande" : EvalWinograndePreprocessor(tokenizer, sequence_max_length),
         }
 
     def __call__(self, dataset_names: str, num_shots: str, datasets: Dict[str, Dataset]) -> Dict[str, Dataset] :
@@ -58,7 +56,7 @@ class EvaluationDatasetPreprocessor :
         return preprocessed_datasets
 
 
-class ArcPreprocessor :
+class EvalArcPreprocessor :
     def __init__(self, 
         tokenizer: LlamaTokenizer,
         sequence_max_length: int,
@@ -158,7 +156,7 @@ class ArcPreprocessor :
         return datasets
 
 
-class HellaswagPreprocessor :
+class EvalHellaswagPreprocessor :
     def __init__(self, 
         tokenizer: LlamaTokenizer,
         sequence_max_length: int,
@@ -248,7 +246,7 @@ class HellaswagPreprocessor :
         return datasets
 
 
-class GSM8KPreprocessor :
+class EvalGSM8KPreprocessor :
     def __init__(self, 
         tokenizer: LlamaTokenizer,
         sequence_max_length: int,
@@ -331,7 +329,7 @@ class GSM8KPreprocessor :
 
 
 
-class TruthfulQAGenerationPreprocessor :
+class EvalTruthfulQAGenerationPreprocessor :
     def __init__(self, 
         tokenizer: LlamaTokenizer,
         sequence_max_length: int,
@@ -414,7 +412,7 @@ class TruthfulQAGenerationPreprocessor :
         return datasets
 
 
-class TruthfulQAMultipleChoicePreprocessor :
+class EvalTruthfulQAMultipleChoicePreprocessor :
     def __init__(self, 
         tokenizer: LlamaTokenizer,
         sequence_max_length: int,
@@ -501,3 +499,93 @@ class TruthfulQAMultipleChoicePreprocessor :
 
         return datasets
 
+
+class EvalWinograndePreprocessor :
+    def __init__(self, 
+        tokenizer: LlamaTokenizer,
+        sequence_max_length: int,
+    ) :       
+        self.tokenizer = tokenizer
+        self.sequence_max_length = sequence_max_length
+
+    def _make_few_shot_example(self, datasets: List[Dict[str, Any]], sampled_ids: List[int]) :
+        sentences = datasets["sentence"]
+        option1s = datasets["option1"]
+        option2s = datasets["option2"]
+        answers = datasets["answer"]
+
+        examples = []
+        for i in sampled_ids :
+            sentence = sentences[i]
+            option1 = option1s[i]
+            option2 = option2s[i]
+            answer = answers[i]
+            answer_text = option1 if answer == 1 else option2
+
+            input_text = f"### SENTENCE:\n{sentence}\n\n### OPTION1:\n{option1}\n\n### OPTION2:\n{option2}\n\n### ANSWER:\n{answer_text}"
+            examples.append(input_text)
+
+        few_shot_example = "\n\n\n\n".join(examples)
+        return few_shot_example
+
+    def _truncate(self, input_ids: List[int]) :
+        input_ids = input_ids[-self.sequence_max_length:]
+        input_string = self.tokenizer.decode(input_ids)
+
+        input_shots = input_string.split("\n\n\n\n")
+        if input_shots[0][:3] != "###" :
+            input_shots = input_shots[1:]
+
+        truncated_input_string = "\n\n\n\n".join(input_shots)
+        truncated_input_id = self.tokenizer(
+            truncated_input_string, 
+            max_length=self.sequence_max_length,
+            truncation='do_not_truncate',
+            add_special_tokens=False
+        ).input_ids
+
+        return truncated_input_id
+
+    def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int) :
+        sentences = datasets["sentence"]
+        option1s = datasets["option1"]
+        option2s = datasets["option2"]
+        answers = datasets["answer"]
+
+        input_ids, attention_masks, labels = [], [], []
+
+        size = len(sentences)
+        for i in range(size) :
+            sentence = sentences[i]
+            option1 = option1s[i]
+            option2 = option2s[i]
+            answer = answers[i]
+            answer_text = option1 if answer == 1 else option2
+            
+            all_text = f"### SENTENCE:\n{sentence}\n\n### OPTION1:\n{option1}\n\n### OPTION2:\n{option2}\n\n### ANSWER:\n"
+
+            if num_shot > 0 :
+                sampled_ids = np.random.choice(size, num_shot+1, replace=False)
+                sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
+                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
+                input_text = few_shot_example + "\n\n\n\n" + input_text
+
+            input_id = self.tokenizer(
+                all_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            if num_shot > 0 :
+                input_id = self._truncate(input_id)
+            attention_mask = [1]*len(input_id)
+
+            input_ids.append(input_id)
+            attention_masks.append(attention_mask)
+            labels.append(answer_text)
+
+        datasets["input_ids"] = input_ids
+        datasets["attention_mask"] = attention_masks
+        datasets["labels"] = labels
+
+        return datasets
