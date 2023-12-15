@@ -10,7 +10,7 @@
 python /home/sangha110495/project/Llama-Instruction-Tuning/src/run_finetune.py \
     --model_path="/mnt/disks-standard/persist/llama/llama-2-7b-hf" \
     --tokenizer_path="/mnt/disks-standard/persist/llama/llama-2-7b-hf" \
-    --instruction_datasets="[arc]" \
+    --instruction_datasets="[openorca-multiplechoice]" \
     --dataset_sizes="[all]" \
     --evaluation_datasets="[arc,mmlu,hellaswag]" \
     --evaluation_shots="[5,5,5]" \
