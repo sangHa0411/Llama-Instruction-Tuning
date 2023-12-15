@@ -227,7 +227,7 @@
 <br>
 <br>
 
-## Furture points
+## Further points
   * These are tasks which i am studying nowdays and i am going to implement in this repository.
     1. Update evaluation metrics in ```eval/metrics.py``` for using metrics in https://github.com/EleutherAI/lm-evaluation-harness. 
     2. Add chat datasets for instruction-tuning.
