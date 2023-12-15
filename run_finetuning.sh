@@ -1,12 +1,4 @@
-
-# Training script
-## Evaluation Dataset
-## MMLU : 5-shot
-## ARC : 25-shot
-## HellaSwag : 10-shot
-## TruthfulQA : 5-shot
-## GSM8k : 5-shot
-
+# Insturction-Tuning command example
 python /home/sangha110495/project/Llama-Instruction-Tuning/src/run_finetune.py \
     --model_path="/mnt/disks-standard/persist/llama/llama-2-7b-hf" \
     --tokenizer_path="/mnt/disks-standard/persist/llama/llama-2-7b-hf" \
