@@ -81,7 +81,7 @@
         --instruction_datasets="[arc,mmlu,slimorca]" \
         --dataset_sizes="[all,10%,1000]"
     ```
-    * those command means use all train data from arc, 10% train data for mmlu, and 1000 train data from slimorca.
+    * those command means use all train data from Arc, 10% train data for MMLU, and 1000 train data from Slimorca.
   * As you can see, this code supports three type of dataset_sizes
     * ```all``` : Use all data.
     * ```K``` : Use random sampling and extract exactly K data. | [0 ~ Max size of dataset]
@@ -106,10 +106,10 @@
     * Use 3 shot for Arc benchmark, 4 shot for MMLU benchmark, and 5 shot for Hellaswag benchmark.
   * **Notice**
     * If you use few-shot for evaluation, there are cases which length is more than sequence_max_length. In these case, ```eval/eval_preprocessor.py``` deletes truncated shots and uses only perfect shots.
-    * For example, even though you gave 5 shots, preprocessor would make some examples less than 5 shots.
+    * For example, even though you give 5 shots, evaL_preprocessor can make some examples less than 5 shots.
     * 2-Shot example from MMLU Dataset
       ```
-      '### QUESTION:
+      ### QUESTION:
       The International Space Station (ISS) circles the Earth approximately 410 km above the ground. Find the best estimate for the orbital speed of the ISS:
       
       ### CHOICES:
@@ -144,7 +144,7 @@
 <br>
 
 ## Fine-tuning code
-  * This is detail of fine-tuning code in ```run_finetun.py```. I make fine-tuning code like Huggingface style as much as i can.
+  * This is detail of fine-tuning code in ```run_finetun.py```. I make fine-tuning code like Huggingface style as possible as i can.
   * Fine-tuning code
     ```python
     # Setting Device & Model mesh
@@ -229,6 +229,7 @@
 
 ## Furture points
   * These are tasks which i am studying nowdays and i am going to implement in this repository.
-    1. Add Chat datasets for instruction-tuning.
-    2. Gradient Accumulation Steps
+    1. Update evaluation metrics in ```eval/metrics.py``` for using metrics in https://github.com/EleutherAI/lm-evaluation-harness. 
+    2. Add chat datasets for instruction-tuning.
+    3. Gradient accumulation steps
     3. LoRA for Llama in Jax/Flax.
