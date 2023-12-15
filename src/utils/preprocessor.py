@@ -22,7 +22,8 @@ class InstructionDatasetPreprocessor :
         self.tokenizer = tokenizer
         self.sequence_max_length = sequence_max_length
         self.label_pad_token_id = label_pad_token_id
-        self.num_cores = multiprocessing.cpu_count() // 3
+        # self.num_cores = multiprocessing.cpu_count() // 3
+        self.num_cores = 1
 
         self.preprocessors = {
             "alpaca" : AlpacaPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
@@ -92,7 +93,6 @@ class AlpacaPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            all_input_id = all_input_id + [self.tokenizer.eos_token_id]
             attention_mask = [1]*len(all_input_id)
 
             source_input_id = self.tokenizer(
@@ -103,6 +103,7 @@ class AlpacaPreprocessor :
             ).input_ids
             source_input_id_length = len(source_input_id)
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+            label = label[1:] + [self.tokenizer.eos_token_id]
 
             input_ids.append(all_input_id)
             attention_masks.append(attention_mask)
@@ -148,7 +149,7 @@ class CoTCollectionPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            all_input_id = all_input_id + [self.tokenizer.eos_token_id]
+            all_input_id = all_input_id
             attention_mask = [1]*len(all_input_id)
 
             source_input_id = self.tokenizer(
@@ -159,6 +160,7 @@ class CoTCollectionPreprocessor :
             ).input_ids
             source_input_id_length = len(source_input_id)
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+            label = label[1:] + [self.tokenizer.eos_token_id]
 
             input_ids.append(all_input_id)
             attention_masks.append(attention_mask)
@@ -222,7 +224,7 @@ class SlimOrcaPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            all_input_id = all_input_id + [self.tokenizer.eos_token_id]
+            all_input_id = all_input_id
             attention_mask = [1]*len(all_input_id)
 
             source_input_id = self.tokenizer(
@@ -233,6 +235,7 @@ class SlimOrcaPreprocessor :
             ).input_ids
             source_input_id_length = len(source_input_id)
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+            label = label[1:] + [self.tokenizer.eos_token_id]
 
             input_ids.append(all_input_id)
             attention_masks.append(attention_mask)
@@ -277,7 +280,6 @@ class OpenOrcaMCPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            all_input_id = all_input_id + [self.tokenizer.eos_token_id]
             attention_mask = [1]*len(all_input_id)
 
             source_input_id = self.tokenizer(
@@ -288,6 +290,7 @@ class OpenOrcaMCPreprocessor :
             ).input_ids
             source_input_id_length = len(source_input_id)
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+            label = label[1:] + [self.tokenizer.eos_token_id]
 
             input_ids.append(all_input_id)
             attention_masks.append(attention_mask)
@@ -336,7 +339,6 @@ class MmluPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            all_input_id = all_input_id + [self.tokenizer.eos_token_id]
             attention_mask = [1]*len(all_input_id)
 
             source_input_id = self.tokenizer(
@@ -347,6 +349,7 @@ class MmluPreprocessor :
             ).input_ids
             source_input_id_length = len(source_input_id)
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+            label = label[1:] + [self.tokenizer.eos_token_id]
 
             input_ids.append(all_input_id)
             attention_masks.append(attention_mask)
@@ -400,7 +403,7 @@ class ArcPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            all_input_id = all_input_id + [self.tokenizer.eos_token_id]
+            all_input_id = all_input_id
             attention_mask = [1]*len(all_input_id)
 
             source_input_id = self.tokenizer(
@@ -411,6 +414,7 @@ class ArcPreprocessor :
             ).input_ids
             source_input_id_length = len(source_input_id)
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+            label = label[1:] + [self.tokenizer.eos_token_id]
 
             input_ids.append(all_input_id)
             attention_masks.append(attention_mask)
@@ -453,7 +457,6 @@ class GSM8KPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            all_input_id = all_input_id + [self.tokenizer.eos_token_id]
             attention_mask = [1]*len(all_input_id)
 
             source_input_id = self.tokenizer(
@@ -464,6 +467,7 @@ class GSM8KPreprocessor :
             ).input_ids
             source_input_id_length = len(source_input_id)
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+            label = label[1:] + [self.tokenizer.eos_token_id]
 
             input_ids.append(all_input_id)
             attention_masks.append(attention_mask)
@@ -511,7 +515,6 @@ class WinograndePreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            all_input_id = all_input_id + [self.tokenizer.eos_token_id]
             attention_mask = [1]*len(all_input_id)
 
             source_input_id = self.tokenizer(
@@ -522,6 +525,7 @@ class WinograndePreprocessor :
             ).input_ids
             source_input_id_length = len(source_input_id)
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+            label = label[1:] + [self.tokenizer.eos_token_id]
 
             input_ids.append(all_input_id)
             attention_masks.append(attention_mask)
