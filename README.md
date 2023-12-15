@@ -104,6 +104,41 @@
     ```
     * those command means evaluate Arc, MMLU and Hellaswag benchmarks regularly while training.
     * Use 3 shot for Arc benchmark, 4 shot for MMLU benchmark, and 5 shot for Hellaswag benchmark.
+  * **Notice**
+    * If you use few-shot for evaluation, there are cases which length is more than sequence_max_length. In these case, ```eval/eval_preprocessor.py``` deletes truncated shots and uses only perfect shots.
+    * For example, even though you gave 5 shots, preprocessor would make some examples less than 5 shots.
+    * 2-Shot example from MMLU Dataset
+      ```
+      '### QUESTION:
+      The International Space Station (ISS) circles the Earth approximately 410 km above the ground. Find the best estimate for the orbital speed of the ISS:
+      
+      ### CHOICES:
+      (0): 19000 km/h (1): 21000 km/h (2): 28000 km/h (3): 32000 km/h
+      
+      ### ANSWER:
+      28000 km/h
+      
+      
+      
+      ### QUESTION:
+      World population tends to be concentrated
+      
+      ### CHOICES:
+      (0): in continental interiors. (1): on continental margins. (2): in the desert. (3): in the tropical lowlands and river valleys.
+      
+      ### ANSWER:
+      on continental margins.
+      
+      
+      
+      ### QUESTION:
+      The rehabilitation of old, rundown inner-city neighborhoods by middle- and high-income people is called
+      
+      ### CHOICES:
+      (0): urbanization. (1): gentrification. (2): suburbanization. (3): multiplier effect.
+      
+      ### ANSWER:
+      ```
 
 <br>
 <br>
