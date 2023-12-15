@@ -49,7 +49,7 @@ def get_model_and_tokenizer(args) -> Tuple[LlamaConfig, LlamaForCausalLM, LlamaT
 
     # Load huggingface model
     logging.info("Load huggingface model")
-    hf_model = LlamaForCausalLM.from_pretrained(model_path, cache_dir="/mnt/disks-standard/persist/huggingface")
+    hf_model = LlamaForCausalLM.from_pretrained(model_path, cache_dir=args.cache_dir)
 
     return config, hf_model, tokenizer
 
@@ -65,24 +65,32 @@ def train(args):
 
     # Loading Dataset
     ## Train Dataset
-    train_dataset_loader = InstructionDatasetLoader(args.random_seed, args.instruction_datasets, args.dataset_sizes)
+    train_dataset_loader = InstructionDatasetLoader(
+        random_seed=args.random_seed, 
+        datasets=args.instruction_datasets, 
+        ratios=args.dataset_sizes, 
+        cache_dir=args.cache_dir
+    )
     instruction_dataset = train_dataset_loader.load()
     logging.info(f"Instruction dataset:{instruction_dataset}")
     
     ## Evaluation Dataset
-    eval_dataset_loader = EvalDatasetLoader(args.random_seed, args.evaluation_datasets)
+    eval_dataset_loader = EvalDatasetLoader(
+        datasets=args.evaluation_datasets,
+        cache_dir=args.cache_dir
+    )
     evaluation_dataset = eval_dataset_loader.load()
     logging.info(f"Instruction dataset:{evaluation_dataset}")
     
     # Preprocessing and Encodign Dataset
     ## Train Dataset
     train_preprocessor = InstructionDatasetPreprocessor(tokenizer=tokenizer, sequence_max_length=args.sequence_max_length)
-    encoded_instruction_dataset = train_preprocessor(instruction_dataset)
+    encoded_instruction_dataset = train_preprocessor(datasets=instruction_dataset)
     logging.info(f"Encoded dataset:{encoded_instruction_dataset}")
 
     ## Evaluation Dataset
     eval_preprocessor = EvaluationDatasetPreprocessor(tokenizer=tokenizer, sequence_max_length=args.sequence_max_length)
-    encoded_evaluation_datasets = eval_preprocessor(args.evaluation_shots, evaluation_dataset)
+    encoded_evaluation_datasets = eval_preprocessor(num_shots=args.evaluation_shots, datasets=evaluation_dataset)
     logging.info(f"Encoded dataset:{encoded_evaluation_datasets}")
     
     # Setting Device & Model mesh
@@ -94,8 +102,8 @@ def train(args):
     logging.info(f"Tpu devices:{tpu_devices}")
 
     # Extracting model parameters from huggingface model
-    parameter_convertor = ParameterConvertor(mesh, config, tokenizer)
-    params = parameter_convertor(hf_model)
+    parameter_convertor = ParameterConvertor(mesh=mesh, config=config, tokenizer=tokenizer)
+    params = parameter_convertor(hf_model=hf_model)
     
     # Data Collator
     data_collator = Seq2SeqCollator(tokenizer, sequence_max_length=args.sequence_max_length)
@@ -108,7 +116,6 @@ def train(args):
         args=args, 
         model=model, 
         params=params, 
-        mesh=mesh,
         tokenizer=tokenizer,
         dataset=encoded_instruction_dataset, 
         eval_datasets=encoded_evaluation_datasets,
@@ -160,6 +167,7 @@ if __name__ == "__main__":
     # Data & Logging Path
     parser.add_argument("--logging_path", type=str, default="/project/llama-instruction-tuning/exps/logging", help="path for evaluation prediction results")
     parser.add_argument("--output_dir", type=str, default="/mnt/disks-standard/persist/t5/llama-alpaca/exps/checkpoints", help="model checkpoint path")
+    parser.add_argument("--cache_dir", type=str, default="/mnt/disks-standard/persist/huggingface", help="dataset cache path")
 
     # Model evaluation & save strategy
     parser.add_argument("--evaluation_strategy", type=str, default="epoch", help="do model evaluation during training")

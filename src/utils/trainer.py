@@ -6,7 +6,6 @@ import logging
 import numpy as np
 import jax.numpy as jnp
 from typing import Dict
-from jax.sharding import Mesh
 from pytz import timezone
 from datetime import datetime
 from datasets import Dataset
@@ -34,7 +33,6 @@ class Trainer :
         args, 
         model: FlaxLlaMaForCausalLM, 
         params: PyTree[np.ndarray], 
-        mesh: Mesh,
         tokenizer: LlamaTokenizer,
         dataset: Dataset,
         eval_datasets: Dict[str, Dataset],
@@ -44,7 +42,6 @@ class Trainer :
         self.args = args
         self.model = model
         self.params = params
-        self.mesh = mesh
         self.tokenizer = tokenizer
         self.dataset = dataset
         self.eval_datasets = eval_datasets
@@ -189,8 +186,8 @@ class Trainer :
                     progress_bar_eval.update(1)
 
                 eval_labels = eval_labels[:len(eval_predictions)]
-                if dataset_name in ["arc", "hellaswag", "truthful_qa-multiple_choice", "winogrande"] :
-                    metric = insturction_metrics.get_multiple_choice_accuracy(eval_predictions, eval_labels)
+                if dataset_name in ["arc", "mmlu", "hellaswag", "truthful_qa-multiple_choice", "winogrande"] :
+                    metric = insturction_metrics.get_multiple_exact_match(eval_predictions, eval_labels)
                 elif dataset_name == "gsm8k" :
                     metric = insturction_metrics.get_gsm8k_accuracy(eval_predictions, eval_labels)
                 elif dataset_name == "truthful_qa-generation" :

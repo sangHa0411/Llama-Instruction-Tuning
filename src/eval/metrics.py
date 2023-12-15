@@ -7,7 +7,7 @@ class InstructionMetrics :
     def __init__(self, ) :
         self.bleu_scorer = evaluate.load("bleu")
 
-    def get_multiple_choice_accuracy(self, predictions: List[str], labels: List[str]) :
+    def get_multiple_exact_match(self, predictions: List[str], labels: List[str]) :
         assert len(predictions) == len(labels)
 
         total_acc = 0
@@ -16,7 +16,7 @@ class InstructionMetrics :
                 total_acc += 1
 
         total_acc = total_acc / len(predictions)
-        return {"acc" : total_acc}
+        return {"exact_match" : total_acc}
 
     def get_gsm8k_accuracy(self, predictions: List[str], labels: List[str]) :
         assert len(predictions) == len(labels)

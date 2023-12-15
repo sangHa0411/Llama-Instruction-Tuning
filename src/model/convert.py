@@ -29,7 +29,7 @@ class ParameterConvertor :
         inverted_w = transposed_w.reshape(hidden_size, hidden_size)
         return inverted_w
 
-    def convert_from_pytorch_model(self, params: Dict[str, torch.Tensor]) -> PyTree[np.ndarray]:
+    def convert_from_hf_model(self, params: Dict[str, torch.Tensor]) -> PyTree[np.ndarray]:
         num_hidden_layers = getattr(self.config, "num_hidden_layers")
 
         jax_weights = {
@@ -62,9 +62,9 @@ class ParameterConvertor :
     def to_bf16(self, t: PyTree[jnp.ndarray]) -> PyTree[jnp.ndarray]:
         return jax.tree_map(lambda x: x.astype(jnp.bfloat16) if x.dtype == jnp.float32 else x, t)
 
-    def __call__(self, torch_model: LlamaForCausalLM) :
-        torch_params = torch_model.state_dict()
-        jax_params = self.convert_from_pytorch_model(params=torch_params)
+    def __call__(self, hf_model: LlamaForCausalLM) :
+        hf_params = hf_model.state_dict()
+        jax_params = self.convert_from_hf_model(params=hf_params)
 
         with jax.default_device(jax.devices('cpu')[0]):
             jax_params = freeze(jax.tree_map(lambda x: jnp.asarray(x), jax_params))
