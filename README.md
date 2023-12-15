@@ -1,8 +1,8 @@
 # Llama-Instruction-Tuning
-* This repository is implemented using Jax/Flax.
+* This repository was implemented using Jax/Flax.
 * This fine-tuning code supports model parallel, so you can train Llama2-7B model on **TPU V3-8**.
-  * I didn't run this code on other tpu devices like TPU V3-32, TPU V3-256 or gpu devices, so i am not sure this code running on those devices without errors.
-* You can easly do instruction tuning Llama2 with diverse instruction datasets and evaluation benchmarks which consist of Open LLM Leaderboard
+  * I haven't run this code on other tpu devices like TPU V3-32, TPU V3-256 or gpu devices yet. So i am not sure this code running on those devices without errors.
+* You can easly do instruction tuning Llama2 model with diverse instruction datasets and evaluation benchmarks which consist of Open LLM Leaderboard
 
 ---
 <br>
@@ -34,7 +34,7 @@
     * I used ```\n\n\n\n``` for few-shot delimiter.
     * You can change this delimiter in ```utils/preprocessor.py```, ```eval/eval_preprocessor.py``` and ```utils/trainer.py```.
   * These are instruction examples.
-    * Simple prompt example from Alpaca dataset.
+    * Simple instruction example from Alpaca dataset.
         ```
         ### INSTRUCTION:
         What would be the best type of exercise for a person who has arthritis?
@@ -82,7 +82,7 @@
         --dataset_sizes="[all,10%,1000]"
     ```
     * those command means use all train data from Arc, 10% train data for MMLU, and 1000 train data from Slimorca.
-  * As you can see, this code supports three type of dataset_sizes
+  * As you can see, dataset_sizes column supports three type of dataset_sizes
     * ```all``` : Use all data.
     * ```K``` : Use random sampling and extract exactly K data. | [0 ~ Max size of dataset]
     * ```K%``` : Use random sampling and extract exactly K% of all data. | [0% ~ 100%]
@@ -102,12 +102,12 @@
         --evaluation_datasets="[arc,mmlu,hellaswag]" \
         --evaluation_shots="[3,4,5]"
     ```
-    * those command means evaluate Arc, MMLU and Hellaswag benchmarks regularly while training.
+    * Those command means evaluate Arc, MMLU and Hellaswag benchmarks regularly while training.
     * Use 3 shot for Arc benchmark, 4 shot for MMLU benchmark, and 5 shot for Hellaswag benchmark.
   * **Notice**
     * If you use few-shot for evaluation, there are cases which length is more than sequence_max_length. In these case, ```eval/eval_preprocessor.py``` deletes truncated shots and uses only perfect shots.
     * For example, even though you give 5 shots, evaL_preprocessor can make some examples less than 5 shots.
-    * 2-Shot example from MMLU Dataset
+    * 2-Shot example from MMLU dataset
       ```
       ### QUESTION:
       The International Space Station (ISS) circles the Earth approximately 410 km above the ground. Find the best estimate for the orbital speed of the ISS:
@@ -144,7 +144,7 @@
 <br>
 
 ## Fine-tuning code
-  * This is detail of fine-tuning code in ```run_finetun.py```. I make fine-tuning code like Huggingface style as possible as i can.
+  * This is detail of fine-tuning code in ```run_finetun.py```. I made fine-tuning code like Huggingface style as possible as i can.
   * Fine-tuning code
     ```python
     # Setting Device & Model mesh
