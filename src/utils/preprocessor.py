@@ -181,7 +181,6 @@ class SlimOrcaPreprocessor :
         self.label_pad_token_id = label_pad_token_id
 
     def _split(self, conversation: str) -> Dict[str, str]:
-        conversation = eval(re.sub("} *\n *{", "},{", conversation))
         assert conversation[-1]["from"] == "gpt"
             
         gpt_chat = conversation[-1]

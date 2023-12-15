@@ -37,12 +37,9 @@ class InstructionDatasetLoader :
 
             elif "slimorca" in dataset_name :
                 dataset_path = "Open-Orca/SlimOrca"
+                dataset = load_dataset(dataset_path, split="train", cache_dir="/mnt/disks-standard/persist/huggingface")
 
-                # train.csv from https://www.kaggle.com/datasets/thedevastator/open-orca-slimorca-gpt-4-completions
-                raw_csv_path = os.path.join("/mnt/disks-standard/persist", "slimorca", "train.csv")
-
-                train_df = pd.read_csv(raw_csv_path)
-                dataset = Dataset.from_pandas(train_df)
+                dataset = dataset["train"]
                 dataset = dataset.shuffle(self.random_seed)
 
             elif "openorca-multiplechoice" == dataset_name :

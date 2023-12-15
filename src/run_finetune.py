@@ -141,7 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--evaluation_shots", type=str, default="[0,0]", help="shot size for evaluation")
 
     # Model Name
-    parser.add_argument("--model_name", type=str, default="llama/llama-2-7b-hf", help="model's name")
+    parser.add_argument("--model_name", type=str, default="llama-2-7b-hf", help="model's name")
     parser.add_argument("--run_name", type=str, default=None, help="A descriptor for the run. used for wandb logging")
 
     # Random Seed

@@ -1,4 +1,6 @@
+import os
 import jax
+import torch
 import optax
 import logging
 import numpy as np
@@ -14,8 +16,9 @@ from data.data_loader import data_loader
 from data.collator import Seq2SeqCollator
 from eval.metrics import InstructionMetrics
 from model.llama_model import FlaxLlaMaForCausalLM
-from transformers import LlamaTokenizer
+from transformers import LlamaTokenizer, LlamaConfig, LlamaForCausalLM
 from transformers.generation import GenerationConfig
+from flax.traverse_util import flatten_dict
 from utils.scheduler import create_constant_lr_scheduler, create_linear_decay_lr_scheduler
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
@@ -80,10 +83,49 @@ class Trainer :
         self.optimizer = optimizer
 
         # tensorboard for logging
-        self.writer = SummaryWriter(log_dir=args.logging_path)
+        os.makedirs(self.args.output_dir, exist_ok=True)
+        self.writer = SummaryWriter(log_dir=args.output_dir)
+
+    def save_model(self, params, num_training_step: int, output_dir: str) :
+        logging.info(f"Saving trained weights [Step : {num_training_step}] | Directory: {output_dir}\n")
+        flattend_params = flatten_dict(params)
+
+        config = LlamaConfig.from_pretrained(self.args.model_path)
+
+        model_state_dict = {}
+        for keys_tuple in flattend_params :
+            key_string = ".".join(list(keys_tuple))
+            # Formatting parameter name to huggingface model
+            if "kernel" in key_string :
+                key_string = key_string.replace("kernel", "weight")
+            elif "embedding" in key_string :
+                key_string = key_string.replace("embedding", "weight")
+
+            # Formatting paramter value to huggingfacce model
+            jnp_array = flattend_params[keys_tuple]
+            if "norm" in key_string or "embed_tokens" in key_string :
+                weight_tensor = torch.from_numpy(np.array(jnp_array,  dtype=np.float32))
+            else :
+                weight_tensor = torch.from_numpy(np.array(jnp_array,  dtype=np.float32)).transpose(0, 1)
+
+                if "self_attn.q_proj" in key_string or "self_attn.k_proj" in key_string :
+                    n_heads = config.num_attention_heads
+                    hidden_size = config.hidden_size
+
+                    reshaped_weight_tensor = weight_tensor.reshape(n_heads, hidden_size // n_heads // 2, 2, hidden_size)
+                    transposed_weight_tensor = reshaped_weight_tensor.transpose(1, 2)
+                    inverted_weight_tensor = transposed_weight_tensor.reshape(hidden_size, hidden_size)
+
+                    weight_tensor = inverted_weight_tensor
+
+            model_state_dict[key_string] = weight_tensor
+
+        model = LlamaForCausalLM(config)
+        model.load_state_dict(model_state_dict)
+        model.save_pretrained(os.path.join(output_dir, f"checkpoint-{num_training_step}"))
 
 
-    def evaluate(self, trainin_step: int = 0) :
+    def evaluate(self, num_trainin_step: int = 0) :
         jax_params = self.params
         jax_model = self.model
 
@@ -99,7 +141,7 @@ class Trainer :
                     num_beams=1, 
                     do_sample=False, 
                     max_length=input_ids.shape[1]+self.args.generation_max_length, 
-                    pad_token_id=self.tokenizer.eos_token_id, 
+                    pad_token_id=self.tokenizer.pad_token_id, 
                     eos_token_id=self.tokenizer.eos_token_id, 
                 ), 
             )
@@ -156,11 +198,10 @@ class Trainer :
                 else :
                     raise NameError("Not valid evaluation dataset name")
 
-                logging.info(f"Evaluation dataset name : {dataset_name} | Accuracy : {metric}\n")
-
+                logging.info(f"Evaluation dataset name : {dataset_name} | Score : {metric}\n")
                 for key in metric :
                     score = metric[key]
-                    self.writer.add_scalar(f"{dataset_name}/{key}", score, global_step=trainin_step)
+                    self.writer.add_scalar(f"{dataset_name}/{key}", score, global_step=num_trainin_step)
 
 
     def train(self, ) :
@@ -243,3 +284,6 @@ class Trainer :
 
             if self.args.evaluation_strategy == "epoch" :
                 self.evaluate(training_step_ptr)
+
+            self.save_model(jax_params, training_step_ptr, self.args.output_dir)
+
