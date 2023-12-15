@@ -87,9 +87,9 @@ class Trainer :
         os.makedirs(logging_path, exist_ok=True)
         self.writer = SummaryWriter(log_dir=logging_path)
 
-    def save_model(self, num_training_step: int, output_dir: str) :
+    def save_model(self, params, num_training_step: int, output_dir: str) :
         logging.info(f"Saving trained weights [Step : {num_training_step}] | Directory: {output_dir}\n")
-        flattend_params = flatten_dict(self.params)
+        flattend_params = flatten_dict(params)
 
         config = LlamaConfig.from_pretrained(self.args.model_path)
 
@@ -126,8 +126,8 @@ class Trainer :
         model.save_pretrained(os.path.join(output_dir, f"checkpoint-{num_training_step}"))
 
 
-    def evaluate(self, num_trainin_step: int = 0) :
-        jax_params = self.params
+    def evaluate(self, params, num_trainin_step: int = 0) :
+        jax_params = params
         jax_model = self.model
 
         insturction_metrics = InstructionMetrics()
@@ -281,15 +281,15 @@ class Trainer :
 
                     if self.args.evaluation_strategy == "steps" :
                         if training_step_ptr % self.args.eval_steps == 0 :
-                            self.evaluate(training_step_ptr)
+                            self.evaluate(jax_params, training_step_ptr)
 
                     if self.args.save_strategy == "steps" :
                         if training_step_ptr % self.args.save_steps == 0 :
-                            self.save_model(training_step_ptr, self.arge.output_dir)
+                            self.save_model(jax_params, training_step_ptr, self.arge.output_dir)
 
             if self.args.evaluation_strategy == "epoch" :
-                self.evaluate(training_step_ptr)
+                self.evaluate(jax_params, training_step_ptr)
 
             if self.args.save_strategy == "epoch" :
-                self.save_model(training_step_ptr, self.arge.output_dir)
+                self.save_model(jax_params, training_step_ptr, self.args.output_dir)
 

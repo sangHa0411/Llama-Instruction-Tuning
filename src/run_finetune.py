@@ -170,9 +170,9 @@ if __name__ == "__main__":
     parser.add_argument("--cache_dir", type=str, default="/mnt/disks-standard/persist/huggingface", help="dataset cache path")
 
     # Model evaluation & save strategy
-    parser.add_argument("--evaluation_strategy", type=str, default="epoch", help="do model evaluation during training | possible strategies [epoch, steps]")
+    parser.add_argument("--evaluation_strategy", type=str, default="none", help="do model evaluation during training | possible strategies [epoch, steps]")
     parser.add_argument("--eval_steps", type=int, default=1000, help="every this size training step, do model evaluation")
-    parser.add_argument("--save_strategy", type=str, default="epoch", help="do model save during training | possible strategies [epoch, steps]")
+    parser.add_argument("--save_strategy", type=str, default="none", help="do model save during training | possible strategies [epoch, steps]")
     parser.add_argument("--save_steps", type=int, default=1000, help="every this size training step, do model save")
 
     # Model & Tokenizer path
