@@ -3,7 +3,6 @@ import optax
 import jax.numpy as jnp
 from typing import Callable
 
-
 def create_linear_decay_lr_scheduler(
     train_ds_size: int, 
     train_batch_size: int, 
@@ -24,7 +23,6 @@ def create_linear_decay_lr_scheduler(
 
     schedule_fn = optax.join_schedules(schedules=[warmup_fn, decay_fn], boundaries=[num_warmup_steps])
     return schedule_fn
-
 
 def create_constant_lr_scheduler(
     train_ds_size: int, 

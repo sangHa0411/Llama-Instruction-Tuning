@@ -79,13 +79,17 @@ class Trainer :
         )
         self.optimizer = optimizer
 
-        # tensorboard for logging
+        # directory path for checkpoints
         os.makedirs(self.args.output_dir, exist_ok=True)
-        self.writer = SummaryWriter(log_dir=args.output_dir)
 
-    def save_model(self, params, num_training_step: int, output_dir: str) :
+        # directory path for tensorboard logging
+        logging_path = os.path.join(self.args.logging_dir, args.run_name)
+        os.makedirs(logging_path, exist_ok=True)
+        self.writer = SummaryWriter(log_dir=logging_path)
+
+    def save_model(self, num_training_step: int, output_dir: str) :
         logging.info(f"Saving trained weights [Step : {num_training_step}] | Directory: {output_dir}\n")
-        flattend_params = flatten_dict(params)
+        flattend_params = flatten_dict(self.params)
 
         config = LlamaConfig.from_pretrained(self.args.model_path)
 
@@ -267,7 +271,7 @@ class Trainer :
                     training_step_ptr += 1
                     progress_bar_train.update(1)
 
-                    if training_step_ptr % self.args.logging_steps == 0 :
+                    if training_step_ptr % (self.args.logging_steps) == 0 :
                         train_loss = train_metric["loss"].mean().item()
                         learning_rate = train_metric["learning_rate"].item()
                         logging.info(f"Train [Step : %s] | Loss: %.8f & Learning Rate: %e\n" %(training_step_ptr, train_loss, learning_rate))
@@ -281,11 +285,11 @@ class Trainer :
 
                     if self.args.save_strategy == "steps" :
                         if training_step_ptr % self.args.save_steps == 0 :
-                            self.save_model(jax_params, training_step_ptr, self.arge.output_dir)
+                            self.save_model(training_step_ptr, self.arge.output_dir)
 
             if self.args.evaluation_strategy == "epoch" :
                 self.evaluate(training_step_ptr)
 
             if self.args.save_strategy == "epoch" :
-                self.save_model(jax_params, training_step_ptr, self.arge.output_dir)
+                self.save_model(training_step_ptr, self.arge.output_dir)
 

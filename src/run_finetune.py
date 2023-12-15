@@ -165,7 +165,7 @@ if __name__ == "__main__":
     parser.add_argument("--generation_max_length", type=int, default=1024, help="generation max length")
 
     # Data & Logging Path
-    parser.add_argument("--logging_path", type=str, default="/project/llama-instruction-tuning/exps/logging", help="path for evaluation prediction results")
+    parser.add_argument("--logging_dir", type=str, default="/project/llama-instruction-tuning/exps/logging", help="path for evaluation prediction results")
     parser.add_argument("--output_dir", type=str, default="/mnt/disks-standard/persist/t5/llama-alpaca/exps/checkpoints", help="model checkpoint path")
     parser.add_argument("--cache_dir", type=str, default="/mnt/disks-standard/persist/huggingface", help="dataset cache path")
 

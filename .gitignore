@@ -1,5 +1,4 @@
 __pycache__
 logging
-*.sh
 *.log
 *.ipynb
