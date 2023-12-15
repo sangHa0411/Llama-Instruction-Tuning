@@ -272,7 +272,7 @@ class OpenOrcaMCPreprocessor :
             response = responses[i]
 
             all_text = f"### INSTRUCTION:\n{prompt}\n\n### QUESTION:\n{question}\n\n### RESPONSE:\n{response}"
-            source_text = f"### INSTRUCTION:\n{prompt}\n\n### INPUT:\n{question}\n\n### RESPONSE:\n"
+            source_text = f"### INSTRUCTION:\n{prompt}\n\n### QUESTION:\n{question}\n\n### RESPONSE:\n"
            
             all_input_id = self.tokenizer(
                 all_text, 
