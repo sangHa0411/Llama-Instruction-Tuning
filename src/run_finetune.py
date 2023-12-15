@@ -49,7 +49,7 @@ def get_model_and_tokenizer(args) -> Tuple[LlamaConfig, LlamaForCausalLM, LlamaT
 
     # Load huggingface model
     logging.info("Load huggingface model")
-    hf_model = LlamaForCausalLM.from_pretrained(model_path, cache_dir=args.cache_dir)
+    hf_model = LlamaForCausalLM.from_pretrained(model_path)
 
     return config, hf_model, tokenizer
 
@@ -142,9 +142,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Llama-Instruction-Tuning")
 
     # Dataset names
-    parser.add_argument("--instruction_datasets", type=str, default="[alpaca,cot-collection]", help="instruction datasets | possible datasets [alpaca, cot-collections, slimorca, openorca-multiplechoice, arc, gsm8k]")
+    parser.add_argument("--instruction_datasets", type=str, default="[alpaca,cot-collection]", help="instruction datasets | possible datasets [alpaca, cot-collections, slimorca, openorca-multiplechoice, arc, mmlu, gsm8k, winogrande]")
     parser.add_argument("--dataset_sizes", type=str, default="[1.0,10%]", help="instruction dataset ratios")
-    parser.add_argument("--evaluation_datasets", type=str, default="[ai2_arc,Rowan/hellaswag]", help="evaluation datasets | possible datasets [arc, hellaswag, gsm8k, truthful_qa]")
+    parser.add_argument("--evaluation_datasets", type=str, default="[ai2_arc,Rowan/hellaswag]", help="evaluation datasets | possible datasets [arc, hellaswag, gsm8k, truthful_qa-generation, truthful_qa-multiple_choice, winogrande]")
     parser.add_argument("--evaluation_shots", type=str, default="[0,0]", help="shot size for evaluation")
 
     # Model Name
@@ -170,9 +170,9 @@ if __name__ == "__main__":
     parser.add_argument("--cache_dir", type=str, default="/mnt/disks-standard/persist/huggingface", help="dataset cache path")
 
     # Model evaluation & save strategy
-    parser.add_argument("--evaluation_strategy", type=str, default="epoch", help="do model evaluation during training")
+    parser.add_argument("--evaluation_strategy", type=str, default="epoch", help="do model evaluation during training | possible strategies [epoch, steps]")
     parser.add_argument("--eval_steps", type=int, default=1000, help="every this size training step, do model evaluation")
-    parser.add_argument("--save_strategy", type=str, default="epoch", help="do model save during training")
+    parser.add_argument("--save_strategy", type=str, default="epoch", help="do model save during training | possible strategies [epoch, steps]")
     parser.add_argument("--save_steps", type=int, default=1000, help="every this size training step, do model save")
 
     # Model & Tokenizer path

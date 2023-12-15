@@ -179,7 +179,7 @@ class Trainer :
 
                     output_tokens = generate_step(jax_params, input_ids, attention_mask)
                     generated = output_tokens[:, -self.args.generation_max_length:]
-
+                    # Extract first shot sequence from generated sequences
                     generated_sequences = [seq.split("\n\n\n\n")[0] for seq in self.tokenizer.batch_decode(generated)]
                     eval_predictions.extend(generated_sequences)
 
@@ -279,8 +279,13 @@ class Trainer :
                         if training_step_ptr % self.args.eval_steps == 0 :
                             self.evaluate(training_step_ptr)
 
+                    if self.args.save_strategy == "steps" :
+                        if training_step_ptr % self.args.save_steps == 0 :
+                            self.save_model(jax_params, training_step_ptr, self.arge.output_dir)
+
             if self.args.evaluation_strategy == "epoch" :
                 self.evaluate(training_step_ptr)
 
-            self.save_model(jax_params, training_step_ptr, self.args.output_dir)
+            if self.args.save_strategy == "epoch" :
+                self.save_model(jax_params, training_step_ptr, self.arge.output_dir)
 

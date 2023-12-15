@@ -49,8 +49,6 @@ class InstructionDatasetLoader :
                     dataset = load_dataset(dataset_path, split="train", cache_dir=self.cache_dir)
                 else :
                     dataset = load_dataset(dataset_path, split="train")
-
-                dataset = dataset["train"]
                 dataset = dataset.shuffle(self.random_seed)
 
             elif "openorca-multiplechoice" == dataset_name :
@@ -72,7 +70,7 @@ class InstructionDatasetLoader :
                 dataset = dataset.shuffle(self.random_seed)
 
             elif "mmlu" in dataset_name :
-                dataset_path = "mmlu"
+                dataset_path = "cais/mmlu"
                 if self.cache_dir is not None :
                     dataset = load_dataset(dataset_path, "all", cache_dir=self.cache_dir)
                 else :
@@ -165,7 +163,7 @@ class EvalDatasetLoader :
                 dataset = concatenate_datasets([challenge_dataset, easy_dataset])
 
             elif "mmlu" in dataset_name :
-                dataset_path = "mmlu"
+                dataset_path = "cais/mmlu"
                 if self.cache_dir is not None :
                     dataset = load_dataset(dataset_path, "all", cache_dir=self.cache_dir)
                 else :
@@ -194,7 +192,7 @@ class EvalDatasetLoader :
                 category = dataset_name.split("-")[1]
                 dataset_path = "truthful_qa"
                 if self.cache_dir is not None :
-                    dataset = load_dataset(dataset_path, category, cache_dir="/mnt/disks-standard/persist/huggingface")
+                    dataset = load_dataset(dataset_path, category, cache_dir=self.cache_dir)
                 else :
                     dataset = load_dataset(dataset_path, category)
 
@@ -205,7 +203,7 @@ class EvalDatasetLoader :
 
                 dataset_path = "winogrande"
                 if self.cache_dir is not None :
-                    dataset = load_dataset(dataset_path, dataset_name, cache_dir="/mnt/disks-standard/persist/huggingface")
+                    dataset = load_dataset(dataset_path, dataset_name, cache_dir=self.cache_dir)
                 else :
                     dataset = load_dataset(dataset_path, dataset_name)
 
