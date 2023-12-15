@@ -34,7 +34,7 @@
     * I used ```\n\n\n\n``` for few-shot delimiter.
     * You can change this delimiter in ```utils/preprocessor.py```, ```eval/eval_preprocessor.py``` and ```utils/trainer.py```.
   * These are instruction examples.
-    * Simple instruction example from Alpaca dataset.
+    * Simple prompt example from Alpaca dataset.
         ```
         ### INSTRUCTION:
         What would be the best type of exercise for a person who has arthritis?
