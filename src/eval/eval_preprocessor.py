@@ -97,6 +97,7 @@ class EvalArcPreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
+        num_shots = len(input_shots)
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -105,7 +106,7 @@ class EvalArcPreprocessor :
             add_special_tokens=False
         ).input_ids
 
-        return truncated_input_id
+        return truncated_input_id, num_shots
 
     def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int):
         questions = datasets["question"]
@@ -113,6 +114,7 @@ class EvalArcPreprocessor :
         answer_keys = datasets["answerKey"]
 
         input_ids, attention_masks, labels = [], [], []
+        num_shots = []
 
         size = len(questions)
         for i in range(size) :
@@ -133,8 +135,12 @@ class EvalArcPreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
+            else :
+                num_used_shot = 0
+
+            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -153,6 +159,8 @@ class EvalArcPreprocessor :
         datasets["input_ids"] = input_ids
         datasets["attention_mask"] = attention_masks
         datasets["labels"] = labels
+
+        datasets["num_shot"] = num_used_shot
 
         return datasets
 
@@ -193,6 +201,7 @@ class EvalMmluPreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
+        num_shots = len(input_shots)
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -201,7 +210,7 @@ class EvalMmluPreprocessor :
             add_special_tokens=False
         ).input_ids
 
-        return truncated_input_id
+        return truncated_input_id, num_shots
 
     def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int):
         questions = datasets["question"]
@@ -209,6 +218,7 @@ class EvalMmluPreprocessor :
         answers = datasets["answer"]
 
         input_ids, attention_masks, labels = [], [], []
+        num_shots = []
 
         size = len(questions)
         for i in range(size) :
@@ -225,8 +235,11 @@ class EvalMmluPreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
+            else :
+                num_used_shot = 0
+            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -245,6 +258,8 @@ class EvalMmluPreprocessor :
         datasets["input_ids"] = input_ids
         datasets["attention_mask"] = attention_masks
         datasets["labels"] = labels
+
+        datasets["num_shot"] = num_shots
 
         return datasets
 
@@ -283,7 +298,8 @@ class EvalHellaswagPreprocessor :
         input_shots = input_string.split("\n\n\n\n")
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
-
+        
+        num_shots = len(input_shots)
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -292,7 +308,7 @@ class EvalHellaswagPreprocessor :
             add_special_tokens=False
         ).input_ids
 
-        return truncated_input_id
+        return truncated_input_id, num_shots
 
     def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int) :
         ctxs = datasets["ctx"]
@@ -300,6 +316,7 @@ class EvalHellaswagPreprocessor :
         answers = datasets["label"]
 
         input_ids, attention_masks, labels = [], [], []
+        num_shots = []
 
         size = len(ctxs)
         for i in range(size) :
@@ -315,8 +332,11 @@ class EvalHellaswagPreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
+            else :
+                num_used_shot = 0
+            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -335,6 +355,8 @@ class EvalHellaswagPreprocessor :
         datasets["input_ids"] = input_ids
         datasets["attention_mask"] = attention_masks
         datasets["labels"] = labels
+
+        datasets["num_shot"] = num_shots
 
         return datasets
 
@@ -370,6 +392,7 @@ class EvalGSM8KPreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
+        num_shots = len(input_shots)
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -378,13 +401,14 @@ class EvalGSM8KPreprocessor :
             add_special_tokens=False
         ).input_ids
 
-        return truncated_input_id
+        return truncated_input_id, num_shots
 
     def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int) :
         questions = datasets["question"]
         answers = datasets["answer"]
-
+        
         input_ids, attention_masks, labels = [], [], []
+        num_shots = []
 
         size = len(questions)
         for i in range(size) :
@@ -397,8 +421,11 @@ class EvalGSM8KPreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
+            else :
+                num_used_shot = 0
+            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -417,6 +444,8 @@ class EvalGSM8KPreprocessor :
         datasets["input_ids"] = input_ids
         datasets["attention_mask"] = attention_masks
         datasets["labels"] = labels
+
+        datasets["num_shot"] = num_shots
 
         return datasets
 
@@ -453,6 +482,7 @@ class EvalTruthfulQAGenerationPreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
+        num_shots = len(input_shots)
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -461,13 +491,14 @@ class EvalTruthfulQAGenerationPreprocessor :
             add_special_tokens=False
         ).input_ids
 
-        return truncated_input_id
+        return truncated_input_id, num_shots
 
     def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int) :
         questions = datasets["question"]
         correct_answers = datasets["correct_answers"]
 
         input_ids, attention_masks, labels = [], [], []
+        num_shots = []
 
         size = len(questions)
         for i in range(size) :
@@ -481,8 +512,11 @@ class EvalTruthfulQAGenerationPreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
+            else :
+                num_used_shot = 0
+            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -501,6 +535,8 @@ class EvalTruthfulQAGenerationPreprocessor :
         datasets["input_ids"] = input_ids
         datasets["attention_mask"] = attention_masks
         datasets["labels"] = labels
+
+        datasets["num_shot"] = num_shots
 
         return datasets
 
@@ -540,6 +576,7 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
+        num_shots = len(input_shots)
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -548,13 +585,14 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
             add_special_tokens=False
         ).input_ids
 
-        return truncated_input_id
+        return truncated_input_id, num_shots
 
     def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int) :
         questions = datasets["question"]
         mc1_targets = datasets["mc1_targets"]
 
         input_ids, attention_masks, labels = [], [], []
+        num_shots = []
 
         size = len(questions)
         for i in range(size) :
@@ -569,8 +607,11 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
+            else :
+                num_used_shot = 0
+            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -589,6 +630,8 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
         datasets["input_ids"] = input_ids
         datasets["attention_mask"] = attention_masks
         datasets["labels"] = labels
+
+        datasets["num_shot"] = num_shots
 
         return datasets
 
@@ -629,6 +672,7 @@ class EvalWinograndePreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
+        num_shots = len(input_shots)
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -637,7 +681,7 @@ class EvalWinograndePreprocessor :
             add_special_tokens=False
         ).input_ids
 
-        return truncated_input_id
+        return truncated_input_id, num_shots
 
     def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int) :
         sentences = datasets["sentence"]
@@ -646,6 +690,7 @@ class EvalWinograndePreprocessor :
         answers = datasets["answer"]
 
         input_ids, attention_masks, labels = [], [], []
+        num_shots = []
 
         size = len(sentences)
         for i in range(size) :
@@ -660,8 +705,11 @@ class EvalWinograndePreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
+            else :
+                num_used_shot = 0
+            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -680,5 +728,7 @@ class EvalWinograndePreprocessor :
         datasets["input_ids"] = input_ids
         datasets["attention_mask"] = attention_masks
         datasets["labels"] = labels
+
+        datasets["num_shot"] = num_shots
 
         return datasets

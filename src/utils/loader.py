@@ -96,6 +96,15 @@ class InstructionDatasetLoader :
                 dataset = concatenate_datasets([challenge_dataset, easy_dataset])
                 dataset = dataset.shuffle(self.random_seed)
 
+            elif "hellaswag" in dataset_name :
+                dataset_path = "Rowan/hellaswag"
+                if self.cache_dir is not None :
+                    dataset = load_dataset(dataset_path, split="train", cache_dir=self.cache_dir)
+                else :
+                    dataset = load_dataset(dataset_path, split="train")
+
+                dataset = dataset.shuffle(self.random_seed)
+
             elif "gsm8k" in dataset_name :
                 dataset_path = "gsm8k"
                 if self.cache_dir is not None :
@@ -196,7 +205,7 @@ class EvalDatasetLoader :
                 else :
                     dataset = load_dataset(dataset_path, category)
 
-                dataset = dataset["test"]
+                dataset = dataset["validation"]
 
             elif "winogrande" in dataset_name :
                 assert dataset_name in ["winogrande_xs", "winogrande_s", "winogrande_m", "winogrande_l", "winogrande_xl"]

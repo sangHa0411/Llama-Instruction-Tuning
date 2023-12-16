@@ -31,6 +31,7 @@ class InstructionDatasetPreprocessor :
             "openorca-multiplechoice" : OpenOrcaMCPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
             "arc" : ArcPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
             "mmlu" : MmluPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
+            "hellaswag" : HellaswagPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
             "gsm8k" : GSM8KPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
             "winogrande" : WinograndePreprocessor(tokenizer, sequence_max_length, label_pad_token_id)
         }
@@ -148,7 +149,6 @@ class CoTCollectionPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            all_input_id = all_input_id
             attention_mask = [1]*len(all_input_id)
 
             source_input_id = self.tokenizer(
@@ -223,7 +223,6 @@ class SlimOrcaPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            all_input_id = all_input_id
             attention_mask = [1]*len(all_input_id)
 
             source_input_id = self.tokenizer(
@@ -402,7 +401,64 @@ class ArcPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            all_input_id = all_input_id
+            attention_mask = [1]*len(all_input_id)
+
+            source_input_id = self.tokenizer(
+                source_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            source_input_id_length = len(source_input_id)
+            label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+            label = label[1:] + [self.tokenizer.eos_token_id]
+
+            input_ids.append(all_input_id)
+            attention_masks.append(attention_mask)
+            labels.append(label)
+
+        datasets["input_ids"] = input_ids
+        datasets["attention_mask"] = attention_masks
+        datasets["labels"] = labels
+
+        return datasets
+
+
+class HellaswagPreprocessor :
+    def __init__(self, 
+        tokenizer: LlamaTokenizer,
+        sequence_max_length: int,
+        label_pad_token_id: int = -100
+    ) :       
+        self.tokenizer = tokenizer
+        self.sequence_max_length = sequence_max_length
+        self.label_pad_token_id = label_pad_token_id
+
+    def preprocess(self, datasets: List[Dict[str, Any]]):
+        ctxs = datasets["ctx"]
+        endings = datasets["endings"]
+        answers = datasets["label"]
+
+        input_ids, attention_masks, labels = [], [], []
+
+        size = len(questions)
+        for i in range(size) :
+            context = ctxs[i]
+            ending = endings[i]
+            answer = int(answers[i])
+            
+            candidate_ending = " ".join([f"({i}): {e}" for i, e in enumerate(ending)])
+            target_text = ending[answer]
+
+            all_text = f"### CONTEXT:\n{context}\n\n### CANDIDATE ENDINGS:\n{candidate_ending}\n\n### ANSWER:\n{taget_text}"
+            source_text = f"### CONTEXT:\n{context}\n\n### CANDIDATE ENDINGS:\n{candidate_ending}\n\n### ANSWER:\n{taget_text}"
+
+            all_input_id = self.tokenizer(
+                all_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
             attention_mask = [1]*len(all_input_id)
 
             source_input_id = self.tokenizer(

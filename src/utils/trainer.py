@@ -160,7 +160,8 @@ class Trainer :
             logging.info(f"Evaluation dataset name : {dataset_name} | dataset information : {eval_dataset}\n")
 
             eval_labels = eval_dataset["labels"]
-            eval_dataset = eval_dataset.remove_columns(["labels"])
+            eval_num_used_shots = eval_dataset["num_shot"]
+            eval_dataset = eval_dataset.remove_columns(["labels", "num_shot"])
 
             eval_loader = data_loader(
                 rng=dropout_rng, 
@@ -192,9 +193,12 @@ class Trainer :
 
                 # Making evaluation results json file and save
                 eval_labels = eval_labels[:len(eval_predictions)]
+                eval_num_used_shots = eval_num_used_shots[:len(eval_predictions)]
+
                 eval_results = {}
                 for i, (pred, label) in enumerate(zip(eval_predictions, eval_labels)) :
                     eval_results[i] = {
+                        "few-shot" : eval_num_used_shots[i],
                         "prediction" : pred,
                         "label" : label
                     }
