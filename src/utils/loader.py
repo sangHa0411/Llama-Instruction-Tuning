@@ -13,10 +13,10 @@ logging.Formatter.converter = lambda *args: datetime.now(tz=timezone("Asia/Seoul
 
 class InstructionDatasetLoader :
 
-    def __init__(self, random_seed: int, datasets: str, ratios: str, cache_dir: Optional[str]=None) :
+    def __init__(self, random_seed: int, datasets: str, dataset_sizes: str, cache_dir: Optional[str]=None) :
         self.random_seed = random_seed
         self.datasets = datasets[1:-1].split(",")
-        self.ratios = ratios[1:-1].split(",")
+        self.dataset_sizes = dataset_sizes[1:-1].split(",")
         self.cache_dir = cache_dir
 
         assert len(self.datasets) == len(self.ratios)
@@ -152,13 +152,13 @@ class EvalDatasetLoader :
                     challenge_dataset = load_dataset(dataset_path, "ARC-Challenge", cache_dir=self.cache_dir)
                 else :
                     challenge_dataset = load_dataset(dataset_path, "ARC-Challenge")
-                challenge_dataset = challenge_dataset["validation"]
+                challenge_dataset = challenge_dataset["test"]
 
                 if self.cache_dir is not None :
                     easy_dataset = load_dataset(dataset_path, "ARC-Easy", cache_dir=self.cache_dir)
                 else :
                     easy_dataset = load_dataset(dataset_path, "ARC-Easy")
-                easy_dataset = easy_dataset["validation"]
+                easy_dataset = easy_dataset["test"]
 
                 dataset = concatenate_datasets([challenge_dataset, easy_dataset])
 
@@ -169,14 +169,14 @@ class EvalDatasetLoader :
                 else :
                     dataset = load_dataset(dataset_path, "all")
 
-                dataset = dataset["validation"]
+                dataset = dataset["test"]
 
             elif "hellaswag" in dataset_name :
                 dataset_path = "Rowan/hellaswag"
                 if self.cache_dir is not None :
-                    dataset = load_dataset(dataset_path, split="validation", cache_dir=self.cache_dir)
+                    dataset = load_dataset(dataset_path, split="test", cache_dir=self.cache_dir)
                 else :
-                    dataset = load_dataset(dataset_path, split="validation")
+                    dataset = load_dataset(dataset_path, split="test")
 
             elif "gsm8k" in dataset_name :
                 dataset_path = "gsm8k"
@@ -196,7 +196,7 @@ class EvalDatasetLoader :
                 else :
                     dataset = load_dataset(dataset_path, category)
 
-                dataset = dataset["validation"]
+                dataset = dataset["test"]
 
             elif "winogrande" in dataset_name :
                 assert dataset_name in ["winogrande_xs", "winogrande_s", "winogrande_m", "winogrande_l", "winogrande_xl"]
@@ -207,7 +207,7 @@ class EvalDatasetLoader :
                 else :
                     dataset = load_dataset(dataset_path, dataset_name)
 
-                dataset = dataset["validation"]
+                dataset = dataset["test"]
                 dataset_name = "winogrande"
 
             else :

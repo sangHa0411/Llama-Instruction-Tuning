@@ -23,8 +23,8 @@ class InstructionMetrics :
 
         total_acc = 0
         for p, l in zip(predictions, labels) :
-            p_tgt = p.split("###")[-1].strip()
-            l_tgt = l.split("###")[-1].strip()
+            p_tgt = p.split("####")[-1].strip()
+            l_tgt = l.split("####")[-1].strip()
 
             if p_tgt == l_tgt :
                 total_acc += 1

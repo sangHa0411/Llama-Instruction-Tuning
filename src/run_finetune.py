@@ -68,7 +68,7 @@ def train(args):
     train_dataset_loader = InstructionDatasetLoader(
         random_seed=args.random_seed, 
         datasets=args.instruction_datasets, 
-        ratios=args.dataset_sizes, 
+        dataset_sizes=args.dataset_sizes, 
         cache_dir=args.cache_dir
     )
     instruction_dataset = train_dataset_loader.load()
@@ -200,7 +200,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    args.run_name = f"MODEL_NAME:{args.model_name}-EP:{args.num_train_epochs}-LR:{args.learning_rate}-BS:{args.per_device_train_batch_size}-WR:{args.warmup_ratio}-WD:{args.weight_decay}"
+    args.run_name = f"MODEL_NAME:{args.model_name}-\
+        DATASET:{args.instruction_datasets}-\
+        DATASET_SIZES:{args.dataset_sizes}-\
+        EP:{args.num_train_epochs}-\
+        LR:{args.learning_rate}-\
+        BS:{args.per_device_train_batch_size}-\
+        WR:{args.warmup_ratio}-\
+        WD:{args.weight_decay}"
     args.output_dir = f"{args.output_dir}/{args.run_name}"
 
     logging.info(f"Training arguments: {args}")

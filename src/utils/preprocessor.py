@@ -22,8 +22,7 @@ class InstructionDatasetPreprocessor :
         self.tokenizer = tokenizer
         self.sequence_max_length = sequence_max_length
         self.label_pad_token_id = label_pad_token_id
-        # self.num_cores = multiprocessing.cpu_count() // 3
-        self.num_cores = 1
+        self.num_cores = multiprocessing.cpu_count() // 3
 
         self.preprocessors = {
             "alpaca" : AlpacaPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),

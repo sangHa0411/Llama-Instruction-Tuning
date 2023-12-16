@@ -1,5 +1,6 @@
 import os
 import jax
+import json
 import torch
 import optax
 import logging
@@ -82,10 +83,10 @@ class Trainer :
         # directory path for checkpoints
         os.makedirs(self.args.output_dir, exist_ok=True)
 
-        # directory path for tensorboard logging
-        logging_path = os.path.join(self.args.logging_dir, args.run_name)
-        os.makedirs(logging_path, exist_ok=True)
-        self.writer = SummaryWriter(log_dir=logging_path)
+        # directory path for logging
+        self.logging_path = os.path.join(self.args.logging_dir, args.run_name)
+        os.makedirs(self.logging_path, exist_ok=True)
+        self.writer = SummaryWriter(log_dir=self.logging_path)
 
     def save_model(self, params, num_training_step: int, output_dir: str) :
         logging.info(f"Saving trained weights [Step : {num_training_step}] | Directory: {output_dir}\n")
@@ -121,6 +122,7 @@ class Trainer :
 
             model_state_dict[key_string] = weight_tensor
 
+        # Set parameters to huggingface Llama model (LlamaForCausalLM)
         model = LlamaForCausalLM(config)
         model.load_state_dict(model_state_dict)
         model.save_pretrained(os.path.join(output_dir, f"checkpoint-{num_training_step}"))
@@ -183,13 +185,28 @@ class Trainer :
 
                     output_tokens = generate_step(jax_params, input_ids, attention_mask)
                     generated = output_tokens[:, -self.args.generation_max_length:]
-                    # Extract first shot sequence from generated sequences
-                    generated_sequences = [seq.split("\n\n\n\n")[0] for seq in self.tokenizer.batch_decode(generated)]
+                    generated_sequences = [seq.split("</s>")[0].strip() for seq in self.tokenizer.batch_decode(generated)]
                     eval_predictions.extend(generated_sequences)
 
                     progress_bar_eval.update(1)
 
+                # Making evaluation results json file and save
                 eval_labels = eval_labels[:len(eval_predictions)]
+                eval_results = {}
+                for i, (pred, label) in enumerate(zip(eval_predictions, eval_labels)) :
+                    eval_results[i] = {
+                        "prediction" : pred,
+                        "label" : label
+                    }
+
+                results_logging_dir = os.path.join(self.logging_path, f"{dataset_name}")
+                os.makedirs(results_logging_dir, exist_ok=True)
+
+                results_logging_path = os.path.join(results_logging_dir, f"checkpoint-{num_trainin_step}.json")
+                with open(results_logging_path, "w") as f :
+                    json.dump(eval_results, f, ensure_ascii=False, indent=4)
+
+                # Get appropirate metric for each evaluation dataset
                 if dataset_name in ["arc", "mmlu", "hellaswag", "truthful_qa-multiple_choice", "winogrande"] :
                     metric = insturction_metrics.get_multiple_exact_match(eval_predictions, eval_labels)
                 elif dataset_name == "gsm8k" :
