@@ -19,7 +19,7 @@ class InstructionDatasetLoader :
         self.dataset_sizes = dataset_sizes[1:-1].split(",")
         self.cache_dir = cache_dir
 
-        assert len(self.datasets) == len(self.ratios)
+        assert len(self.datasets) == len(self.dataset_sizes)
 
     def load(self) :
         datasets = {}
@@ -122,12 +122,12 @@ class InstructionDatasetLoader :
             else :
                 raise NameError("Not valid dataset name")
 
-            if self.ratios[i] == "all" :
+            if self.dataset_sizes[i] == "all" :
                 num_data = len(dataset)
-            elif self.ratios[i][-1] == "%" :
-                num_data = int(len(dataset) * float(self.ratios[i][:-1]))
+            elif self.dataset_sizes[i][-1] == "%" :
+                num_data = int(len(dataset) * (float(self.dataset_sizes[i][:-1])/ 100))
             else :  
-                num_data = int(self.ratios[i])
+                num_data = int(self.dataset_sizes[i])
 
             dataset = dataset.select(range(num_data))
             datasets[dataset_name] = dataset
@@ -218,4 +218,3 @@ class EvalDatasetLoader :
         return datasets
 
     
-

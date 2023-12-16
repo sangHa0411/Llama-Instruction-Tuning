@@ -257,6 +257,7 @@ class Trainer :
         rng, dropout_rng = jax.random.split(rng)
 
         training_step_ptr = 0
+        train_loss_ptr = {"loss": 0.0, "num_step": 0}
 
         num_epoch = self.args.num_train_epochs
         train_batch_size = self.args.per_device_train_batch_size
@@ -288,13 +289,19 @@ class Trainer :
                     training_step_ptr += 1
                     progress_bar_train.update(1)
 
+                    train_loss_ptr["loss"] += train_metric["loss"].mean().item()
+                    train_loss_ptr["num_step"] += 1
+
                     if training_step_ptr % (self.args.logging_steps) == 0 :
-                        train_loss = train_metric["loss"].mean().item()
+                        train_loss = train_metric["loss"] / train_loss_ptr["num_step"]
                         learning_rate = train_metric["learning_rate"].item()
                         logging.info(f"Train [Step : %s] | Loss: %.8f & Learning Rate: %e\n" %(training_step_ptr, train_loss, learning_rate))
 
                         self.writer.add_scalar("train/loss", train_loss, global_step=training_step_ptr)
                         self.writer.add_scalar("train/learning_rate", learning_rate, global_step=training_step_ptr)
+
+                        train_loss_ptr["loss"] = 0.0
+                        train_loss_ptr["num_step"] = 0
 
                     if self.args.evaluation_strategy == "steps" :
                         if training_step_ptr % self.args.eval_steps == 0 :
