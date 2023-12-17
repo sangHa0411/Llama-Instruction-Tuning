@@ -129,7 +129,7 @@ class Trainer :
 
     def decode_output_tokens(self, output_tokens: jnp.ndarray) -> List[str]:
         generated = output_tokens[:, -self.args.generation_max_length:]
-        generated_sequences = [seq.split("</s>") for seq in self.tokenizer.batch_decode(generated)]
+        generated_sequences = [seq.split("</s>")[0] for seq in self.tokenizer.batch_decode(generated)]
 
         for i, generated_seq in enumerate(generated_sequences) :
             if "\n\n\n\n" in generated_seq :
@@ -178,7 +178,7 @@ class Trainer :
             eval_loader = data_loader(
                 rng=dropout_rng, 
                 dataset=eval_dataset, 
-                data_collator=self.eval_data_collator,
+                data_collator=eval_data_collator,
                 batch_size=self.args.per_device_eval_batch_size, 
                 shuffle=False,
                 drop_last=True
@@ -197,7 +197,7 @@ class Trainer :
                     attention_mask = eval_data["attention_mask"]
                     output_tokens = generate_step(jax_params, input_ids, attention_mask)
                     generated_sequences = self.decode_output_tokens(output_tokens)
-               
+    
                     eval_predictions.extend(generated_sequences)
 
                     progress_bar_eval.update(1)

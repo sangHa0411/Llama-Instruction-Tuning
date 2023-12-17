@@ -441,7 +441,7 @@ class HellaswagPreprocessor :
 
         input_ids, attention_masks, labels = [], [], []
 
-        size = len(questions)
+        size = len(ctxs)
         for i in range(size) :
             context = ctxs[i]
             ending = endings[i]
@@ -450,8 +450,8 @@ class HellaswagPreprocessor :
             candidate_ending = " ".join([f"({i}): {e}" for i, e in enumerate(ending)])
             target_text = ending[answer]
 
-            all_text = f"### CONTEXT:\n{context}\n\n### CANDIDATE ENDINGS:\n{candidate_ending}\n\n### ANSWER:\n{taget_text}"
-            source_text = f"### CONTEXT:\n{context}\n\n### CANDIDATE ENDINGS:\n{candidate_ending}\n\n### ANSWER:\n{taget_text}"
+            all_text = f"### CONTEXT:\n{context}\n\n### CANDIDATE ENDINGS:\n{candidate_ending}\n\n### ANSWER:\n{target_text}"
+            source_text = f"### CONTEXT:\n{context}\n\n### CANDIDATE ENDINGS:\n{candidate_ending}\n\n### ANSWER:\n{target_text}"
 
             all_input_id = self.tokenizer(
                 all_text, 

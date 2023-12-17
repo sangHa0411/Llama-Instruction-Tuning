@@ -97,7 +97,7 @@ class EvalArcPreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
-        num_shots = len(input_shots)
+        num_shots = len(input_shots) - 1
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -200,7 +200,7 @@ class EvalMmluPreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
-        num_shots = len(input_shots)
+        num_shots = len(input_shots) - 1
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -299,7 +299,7 @@ class EvalHellaswagPreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
         
-        num_shots = len(input_shots)
+        num_shots = len(input_shots) - 1
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -393,7 +393,7 @@ class EvalGSM8KPreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
-        num_shots = len(input_shots)
+        num_shots = len(input_shots) - 1
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -484,7 +484,7 @@ class EvalTruthfulQAGenerationPreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
-        num_shots = len(input_shots)
+        num_shots = len(input_shots) - 1
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -579,7 +579,7 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
-        num_shots = len(input_shots)
+        num_shots = len(input_shots) - 1
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
@@ -676,7 +676,7 @@ class EvalWinograndePreprocessor :
         if input_shots[0][:3] != "###" :
             input_shots = input_shots[1:]
 
-        num_shots = len(input_shots)
+        num_shots = len(input_shots) - 1
         truncated_input_string = "\n\n\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 

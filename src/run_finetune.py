@@ -93,7 +93,7 @@ def train(args):
     logging.info(f"Encoded dataset:{encoded_instruction_dataset}")
 
     ## Evaluation Dataset
-    eval_preprocessor = EvaluationDatasetPreprocessor(tokenizer=tokenizer, sequence_max_length=args.sequence_max_length)
+    eval_preprocessor = EvaluationDatasetPreprocessor(tokenizer=tokenizer, sequence_max_length=args.eval_sequence_max_length)
     encoded_evaluation_datasets = eval_preprocessor(num_shots=args.evaluation_shots, datasets=evaluation_dataset)
     logging.info(f"Encoded dataset:{encoded_evaluation_datasets}")
     
