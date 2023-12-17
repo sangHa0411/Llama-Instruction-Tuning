@@ -135,12 +135,8 @@ class EvalArcPreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
-            else :
-                num_used_shot = 0
-
-            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -149,8 +145,11 @@ class EvalArcPreprocessor :
                 add_special_tokens=False
             ).input_ids
             if num_shot > 0 :
-                input_id = self._truncate(input_id)
+                input_id, num_used_shot = self._truncate(input_id)
+            else :
+                num_used_shot = 0
             attention_mask = [1]*len(input_id)
+            num_shots.append(num_used_shot)
 
             input_ids.append(input_id)
             attention_masks.append(attention_mask)
@@ -160,7 +159,7 @@ class EvalArcPreprocessor :
         datasets["attention_mask"] = attention_masks
         datasets["labels"] = labels
 
-        datasets["num_shot"] = num_used_shot
+        datasets["num_shot"] = num_shots
 
         return datasets
 
@@ -235,11 +234,8 @@ class EvalMmluPreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
-            else :
-                num_used_shot = 0
-            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -248,8 +244,12 @@ class EvalMmluPreprocessor :
                 add_special_tokens=False
             ).input_ids
             if num_shot > 0 :
-                input_id = self._truncate(input_id)
+                input_id, num_used_shot = self._truncate(input_id)
+            else :
+                num_used_shot = 0
             attention_mask = [1]*len(input_id)
+
+            num_shots.append(num_used_shot)
 
             input_ids.append(input_id)
             attention_masks.append(attention_mask)
@@ -332,11 +332,8 @@ class EvalHellaswagPreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
-            else :
-                num_used_shot = 0
-            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -345,8 +342,12 @@ class EvalHellaswagPreprocessor :
                 add_special_tokens=False
             ).input_ids
             if num_shot > 0 :
-                input_id = self._truncate(input_id)
+                input_id, num_used_shot = self._truncate(input_id)
+            else :
+                num_used_shot = 0
             attention_mask = [1]*len(input_id)
+
+            num_shots.append(num_used_shot)
 
             input_ids.append(input_id)
             attention_masks.append(attention_mask)
@@ -421,11 +422,8 @@ class EvalGSM8KPreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
-            else :
-                num_used_shot = 0
-            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -434,8 +432,12 @@ class EvalGSM8KPreprocessor :
                 add_special_tokens=False
             ).input_ids
             if num_shot > 0 :
-                input_id = self._truncate(input_id)
+                input_id, num_used_shot = self._truncate(input_id)
+            else :
+                num_used_shot = 0
             attention_mask = [1]*len(input_id)
+
+            num_shots.append(num_used_shot)
 
             input_ids.append(input_id)
             attention_masks.append(attention_mask)
@@ -512,11 +514,8 @@ class EvalTruthfulQAGenerationPreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
-            else :
-                num_used_shot = 0
-            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -525,8 +524,12 @@ class EvalTruthfulQAGenerationPreprocessor :
                 add_special_tokens=False
             ).input_ids
             if num_shot > 0 :
-                input_id = self._truncate(input_id)
+                input_id, num_used_shot = self._truncate(input_id)
+            else :
+                num_used_shot = 0
             attention_mask = [1]*len(input_id)
+
+            num_shots.append(num_used_shot)
 
             input_ids.append(input_id)
             attention_masks.append(attention_mask)
@@ -607,11 +610,8 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
-            else :
-                num_used_shot = 0
-            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -620,8 +620,12 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
                 add_special_tokens=False
             ).input_ids
             if num_shot > 0 :
-                input_id = self._truncate(input_id)
+                input_id, num_used_shot = self._truncate(input_id)
+            else :
+                num_used_shot = 0
             attention_mask = [1]*len(input_id)
+
+            num_shots.append(num_used_shot)
 
             input_ids.append(input_id)
             attention_masks.append(attention_mask)
@@ -705,11 +709,8 @@ class EvalWinograndePreprocessor :
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
-                few_shot_example, num_used_shot = self._make_few_shot_example(datasets, sampled_ids)
+                few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n\n\n" + input_text
-            else :
-                num_used_shot = 0
-            num_shots.append(num_used_shot)
 
             input_id = self.tokenizer(
                 input_text, 
@@ -718,8 +719,12 @@ class EvalWinograndePreprocessor :
                 add_special_tokens=False
             ).input_ids
             if num_shot > 0 :
-                input_id = self._truncate(input_id)
+                input_id, num_used_shot = self._truncate(input_id)
+            else :
+                num_used_shot = 0
             attention_mask = [1]*len(input_id)
+
+            num_shots.append(num_used_shot)
 
             input_ids.append(input_id)
             attention_masks.append(attention_mask)

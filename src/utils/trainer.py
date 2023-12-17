@@ -6,7 +6,7 @@ import optax
 import logging
 import numpy as np
 import jax.numpy as jnp
-from typing import Dict
+from typing import Dict, List
 from pytz import timezone
 from datetime import datetime
 from datasets import Dataset
@@ -127,6 +127,16 @@ class Trainer :
         model.load_state_dict(model_state_dict)
         model.save_pretrained(os.path.join(output_dir, f"checkpoint-{num_training_step}"))
 
+    def decode_output_tokens(self, output_tokens: jnp.ndarray) -> List[str]:
+        generated = output_tokens[:, -self.args.generation_max_length:]
+        generated_sequences = [seq.split("</s>") for seq in self.tokenizer.batch_decode(generated)]
+
+        for i, generated_seq in enumerate(generated_sequences) :
+            if "\n\n\n\n" in generated_seq :
+                generated_seq = generated_seq.split("\n\n\n\n")[0]
+                generated_sequences[i] = generated_seq
+                
+        return generated_sequences
 
     def evaluate(self, params, num_trainin_step: int = 0) :
         jax_params = params
@@ -141,8 +151,8 @@ class Trainer :
                 attention_mask=attention_mask, 
                 params=params, 
                 generation_config=GenerationConfig(
-                    num_beams=1, 
                     do_sample=False, 
+                    early_stopping=True,
                     max_length=input_ids.shape[1]+self.args.generation_max_length, 
                     pad_token_id=self.tokenizer.pad_token_id, 
                     eos_token_id=self.tokenizer.eos_token_id, 
@@ -153,6 +163,8 @@ class Trainer :
 
         rng = jax.random.PRNGKey(self.args.random_seed)
         rng, dropout_rng = jax.random.split(rng)
+
+        eval_data_collator = Seq2SeqCollator(self.tokenizer, self.args.eval_sequence_max_length)
 
         logging.info("Evaluation Starts")
         for dataset_name in self.eval_datasets :
@@ -166,7 +178,7 @@ class Trainer :
             eval_loader = data_loader(
                 rng=dropout_rng, 
                 dataset=eval_dataset, 
-                data_collator=self.data_collator,
+                data_collator=self.eval_data_collator,
                 batch_size=self.args.per_device_eval_batch_size, 
                 shuffle=False,
                 drop_last=True
@@ -183,10 +195,9 @@ class Trainer :
                 for eval_data in eval_loader :
                     input_ids = eval_data["input_ids"]
                     attention_mask = eval_data["attention_mask"]
-
                     output_tokens = generate_step(jax_params, input_ids, attention_mask)
-                    generated = output_tokens[:, -self.args.generation_max_length:]
-                    generated_sequences = [seq.split("</s>")[0].strip() for seq in self.tokenizer.batch_decode(generated)]
+                    generated_sequences = self.decode_output_tokens(output_tokens)
+               
                     eval_predictions.extend(generated_sequences)
 
                     progress_bar_eval.update(1)
@@ -297,7 +308,7 @@ class Trainer :
                     train_loss_ptr["num_step"] += 1
 
                     if training_step_ptr % (self.args.logging_steps) == 0 :
-                        train_loss = train_metric["loss"] / train_loss_ptr["num_step"]
+                        train_loss = train_loss_ptr["loss"] / train_loss_ptr["num_step"]
                         learning_rate = train_metric["learning_rate"].item()
                         logging.info(f"Train [Step : %s] | Loss: %.8f & Learning Rate: %e\n" %(training_step_ptr, train_loss, learning_rate))
 

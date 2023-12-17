@@ -35,6 +35,6 @@ class InstructionMetrics :
     def get_truthful_qa_blue(self, predictions: List[str], labels: List[List[str]]) :
         assert len(predictions) == len(labels)
 
-        score = self.bleu_scorer.compute(predictions=predictions, rferences=labels)
+        score = self.bleu_scorer.compute(predictions=predictions, references=labels)
         total_bleu = score["bleu"]
         return {"blue" : total_bleu}

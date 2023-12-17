@@ -165,7 +165,8 @@ if __name__ == "__main__":
     parser.add_argument("--dropout_rate", type=float, default=0.0, help="dropout rate for llm training")
 
     # Sequence Length and Generation Length
-    parser.add_argument("--sequence_max_length", type=int, default=2048, help="llm model max sequence length")
+    parser.add_argument("--sequence_max_length", type=int, default=512, help="llm model max sequence length for training")
+    parser.add_argument("--eval_sequence_max_length", type=int, default=1536, help="llm model max sequence length for evaluation")
     parser.add_argument("--generation_max_length", type=int, default=1024, help="generation max length")
 
     # Data & Logging Path
