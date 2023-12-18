@@ -1,7 +1,6 @@
 # Llama-Instruction-Tuning
 * This repository was implemented using Jax/Flax.
 * This fine-tuning code supports model parallel, so you can train Llama2-7B model on **TPU V3-8**.
-  * I haven't run this code on other tpu devices like TPU V3-32, TPU V3-256 or gpu devices yet. So i am not sure this code running on those devices without errors.
 * You can easly do instruction tuning Llama2 model with diverse instruction datasets and evaluation benchmarks which consist of Open LLM Leaderboard
 
 ---
@@ -14,6 +13,8 @@
     * Cot-Collection(https://huggingface.co/datasets/kaist-ai/CoT-Collection)
     * SlimOrca(https://huggingface.co/datasets/Open-Orca/SlimOrca)
     * Openorca-multiplechoice-10k(https://huggingface.co/datasets/beaugogh/openorca-multiplechoice-10k)
+    * WizardLM(https://huggingface.co/datasets/WizardLM/WizardLM_evol_instruct_70k)
+    * Open-Platypus(https://huggingface.co/datasets/garage-bAInd/Open-Platypus)
     * MMLU(https://huggingface.co/datasets/cais/mmlu)
     * ARC(https://huggingface.co/datasets/ai2_arc)
     * GSM8k(https://huggingface.co/datasets/gsm8k)
@@ -97,7 +98,7 @@
   * **Notice**
     * If you use few-shot for evaluation, there are cases which length is more than sequence_max_length. In these case, ```eval/eval_preprocessor.py``` deletes truncated shots and uses only perfect shots.
     * For example, even though you give 5 shots, evaL_preprocessor can make some examples less than 5 shots.
-    * 2-Shot example from MMLU dataset
+    * 2-Shot example for MMLU dataset
       * Input
         ```
         Question: In what ways is a fusion nuclear device different from a fission device?
@@ -128,7 +129,6 @@
         ```
         State-sponsored prayer during school hours is prohibited, but voluntary prayer by student groups before school is allowed.
         ```
-
 
 <br>
 <br>

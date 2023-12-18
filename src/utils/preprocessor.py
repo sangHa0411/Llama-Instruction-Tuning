@@ -28,7 +28,9 @@ class InstructionDatasetPreprocessor :
             "alpaca" : AlpacaPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
             "cot-collections" : CoTCollectionPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
             "slimorca" : SlimOrcaPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
-            "openorca-multiplechoice" : OpenOrcaMCPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
+            "openorca-mc10k" : OpenOrcaMCPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
+            "wizardlm" : WizardLMPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
+            "open-platypus" : OpenPlatypusPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
             "arc" : ArcPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
             "mmlu" : MmluPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
             "hellaswag" : HellaswagPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
@@ -220,8 +222,8 @@ class SlimOrcaPreprocessor :
             context = splited["context"]
             response = splited["response"]
 
-            all_text = context + f"\nGpt: {response}"
-            source_text = context + "\nGpt: "
+            all_text = context + f"\nFrom: gpt Value: {response}"
+            source_text = context + "\nFrom: gpt Value: "
            
             all_input_id = self.tokenizer(
                 all_text, 
@@ -277,6 +279,112 @@ class OpenOrcaMCPreprocessor :
 
             all_text = f"Instruction: {prompt}\nQuestion: {question}\nResponse: {response}"
             source_text = f"Instruction: {prompt}\nQuestion: {question}\nResponse: "
+           
+            all_input_id = self.tokenizer(
+                all_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            attention_mask = [1]*len(all_input_id)
+
+            source_input_id = self.tokenizer(
+                source_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            source_input_id_length = len(source_input_id)
+            label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+            label = label[1:] + [self.tokenizer.eos_token_id]
+
+            input_ids.append(all_input_id)
+            attention_masks.append(attention_mask)
+            labels.append(label)
+
+        datasets["input_ids"] = input_ids
+        datasets["attention_mask"] = attention_masks
+        datasets["labels"] = labels
+
+        return datasets
+
+
+class WizardLMPreprocessor :
+    def __init__(self, 
+        tokenizer: LlamaTokenizer,
+        sequence_max_length: int,
+        label_pad_token_id: int = -100
+    ) :       
+        self.tokenizer = tokenizer
+        self.sequence_max_length = sequence_max_length
+        self.label_pad_token_id = label_pad_token_id
+
+    def preprocess(self, datasets):
+        instructions = datasets["instruction"]
+        outputs = datasets["output"]
+
+        input_ids, attention_masks, labels = [], [], []
+
+        size = len(instructions)
+        for i in range(size) :
+            instruction = instructions[i]
+            output = outputs[i]
+
+            all_text = f"Instruction: {instruction}\nOutput: {output}"
+            source_text = f"Instruction: {instruction}\nOutput: "
+           
+            all_input_id = self.tokenizer(
+                all_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            attention_mask = [1]*len(all_input_id)
+
+            source_input_id = self.tokenizer(
+                source_text, 
+                max_length=self.sequence_max_length,
+                truncation='do_not_truncate',
+                add_special_tokens=False
+            ).input_ids
+            source_input_id_length = len(source_input_id)
+            label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
+            label = label[1:] + [self.tokenizer.eos_token_id]
+
+            input_ids.append(all_input_id)
+            attention_masks.append(attention_mask)
+            labels.append(label)
+
+        datasets["input_ids"] = input_ids
+        datasets["attention_mask"] = attention_masks
+        datasets["labels"] = labels
+
+        return datasets
+
+
+class OpenPlatypusPreprocessor :
+    def __init__(self, 
+        tokenizer: LlamaTokenizer,
+        sequence_max_length: int,
+        label_pad_token_id: int = -100
+    ) :       
+        self.tokenizer = tokenizer
+        self.sequence_max_length = sequence_max_length
+        self.label_pad_token_id = label_pad_token_id
+
+    def preprocess(self, datasets):
+        instructions = datasets["instruction"]
+        outputs = datasets["output"]
+
+        input_ids, attention_masks, labels = [], [], []
+
+        size = len(instructions)
+        for i in range(size) :
+            instruction = instructions[i]
+            output = outputs[i]
+
+            all_text = f"Instruction: {instruction}\nOutput: {output}"
+            source_text = f"Instruction: {instruction}\nOutput: "
            
             all_input_id = self.tokenizer(
                 all_text, 

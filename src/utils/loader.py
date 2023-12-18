@@ -51,7 +51,7 @@ class InstructionDatasetLoader :
                     dataset = load_dataset(dataset_path, split="train")
                 dataset = dataset.shuffle(self.random_seed)
 
-            elif "openorca-multiplechoice" == dataset_name :
+            elif "openorca-mc10k" == dataset_name :
                 dataset_path = "beaugogh/openorca-multiplechoice-10k"
                 if self.cache_dir is not None :
                     dataset = load_dataset(dataset_path, split="train", cache_dir=self.cache_dir)
@@ -62,6 +62,24 @@ class InstructionDatasetLoader :
 
             elif "alpaca" in dataset_name :
                 dataset_path = "tatsu-lab/alpaca"
+                if self.cache_dir is not None :
+                    dataset = load_dataset(dataset_path, split="train", cache_dir=self.cache_dir)
+                else :
+                    dataset = load_dataset(dataset_path, split="train")
+
+                dataset = dataset.shuffle(self.random_seed)
+
+            elif "wizardlm" in dataset_name :
+                dataset_path = "WizardLM/WizardLM_evol_instruct_70k"
+                if self.cache_dir is not None :
+                    dataset = load_dataset(dataset_path, split="train", cache_dir=self.cache_dir)
+                else :
+                    dataset = load_dataset(dataset_path, split="train")
+
+                dataset = dataset.shuffle(self.random_seed)
+
+            elif "open-platypus" in dataset_name :
+                dataset_path = "garage-bAInd/Open-Platypus"
                 if self.cache_dir is not None :
                     dataset = load_dataset(dataset_path, split="train", cache_dir=self.cache_dir)
                 else :
