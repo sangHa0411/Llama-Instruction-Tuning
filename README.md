@@ -31,42 +31,31 @@
 
 ## Prompt
   * This is prompt i used for instruction tuning. If you want to change format, you should change prompt in ```utils/preprocessor.py``` and ```eval/eval_preprocessor.py```.
-    * I used ```\n\n``` for dataset column delimiter. And after each column, i put ```\n``` and then wrote content of that column.
-    * I used ```\n\n\n\n``` for few-shot delimiter.
+    * I used ```\n``` for dataset column delimiter. And after each column, i put one space and then wrote content of that column.
+    * I used ```\n\n``` for few-shot delimiter.
     * You can change this delimiter in ```utils/preprocessor.py```, ```eval/eval_preprocessor.py``` and ```utils/trainer.py```.
   * These are instruction examples.
     * Simple instruction example from Alpaca dataset.
         ```
-        ### INSTRUCTION:
-        What would be the best type of exercise for a person who has arthritis?
-        
-        ### RESPONSE:
-        For someone with arthritis, the best type of exercise would be low-impact activities like yoga, swimming, or walking. These exercises provide the benefits of exercise without exacerbating the symptoms of arthritis.
+        Instruction: What would be the best type of exercise for a person who has arthritis?
+        Response: For someone with arthritis, the best type of exercise would be low-impact activities like yoga, swimming, or walking. These exercises provide the benefits of exercise without exacerbating the symptoms of arthritis.
         ```
     * Multiple-choice instruction example from MMLU dataset.
         ```
-        ### QUESTION:
-        Rules in the reading room Hello, everyone. Welcome to the school reading room. We hope you have a good time here. Before you go into the reading room, there are some rules you need to keep. 1.The reading room is open from 8:00 a.m. to 5:00 p.m. from Monday to Friday. 2. Don't take your bag into the reading room. 3. Don't talk loudly in the reading room. 4. Don't take any food or drink into the reading room. 5. Take only one book at a time. After you finish reading the book, you must put it back and then you can take another one. Don't take many books to your seat. 6. Before you leave, you must the book to the bookshelf. You can't take any book out of the reading room. How long is the reading room open every day?
-        
-        ### CHOICES:
-        (0): Ten hours. (1): Nine hours. (2): Seven hours. (3): Eight hours.
-        
-        ### ANSWER:
-        Nine hours.
+        Question: Which of these statements concerning the study of identity is not applicable to social constructivism?
+        Choices:
+        0. Identity defines actors, and tells us who they are, what their preferences and interests are, and how those preferences might inform their actions.
+        1. Identity is of fundamental importance to the social constructivist perspective because it is the basest principle in defining behaviour; it is a naturally bestowed quality comprised of certain unalterable behavioural characteristics.
+        2. The identities, interests and behaviour of political agents are socially constructed by shared ideas, collective meaning, and interpretations and assumptions about the world.
+        3. Actors form their identity through interaction, which in turn defines the types of relationship formed between these actors.
+        Answer: Identity is of fundamental importance to the social constructivist perspective because it is the basest principle in defining behaviour; it is a naturally bestowed quality comprised of certain unalterable behavioural characteristics.
         ```
     * Binary-choice instruction example from Winogrande dataset.
         ```
-        ### SENTENCE:
-        While packing for hunting Chris made sure to bring his bag and not his knife because the _ was nonessential.
-        
-        ### OPTION1:
-        bag
-        
-        ### OPTION2:
-        knife
-        
-        ### ANSWER:
-        knife
+        Sentence: While packing for hunting Chris made sure to bring his bag and not his knife because the _ was nonessential.
+        Option1: bag
+        Option2: knife
+        Answer: knife
         ```
 
 <br>
@@ -109,37 +98,37 @@
     * If you use few-shot for evaluation, there are cases which length is more than sequence_max_length. In these case, ```eval/eval_preprocessor.py``` deletes truncated shots and uses only perfect shots.
     * For example, even though you give 5 shots, evaL_preprocessor can make some examples less than 5 shots.
     * 2-Shot example from MMLU dataset
-      ```
-      ### QUESTION:
-      The International Space Station (ISS) circles the Earth approximately 410 km above the ground. Find the best estimate for the orbital speed of the ISS:
-      
-      ### CHOICES:
-      (0): 19000 km/h (1): 21000 km/h (2): 28000 km/h (3): 32000 km/h
-      
-      ### ANSWER:
-      28000 km/h
-      
-      
-      
-      ### QUESTION:
-      World population tends to be concentrated
-      
-      ### CHOICES:
-      (0): in continental interiors. (1): on continental margins. (2): in the desert. (3): in the tropical lowlands and river valleys.
-      
-      ### ANSWER:
-      on continental margins.
-      
-      
-      
-      ### QUESTION:
-      The rehabilitation of old, rundown inner-city neighborhoods by middle- and high-income people is called
-      
-      ### CHOICES:
-      (0): urbanization. (1): gentrification. (2): suburbanization. (3): multiplier effect.
-      
-      ### ANSWER:
-      ```
+      * Input
+        ```
+        Question: In what ways is a fusion nuclear device different from a fission device?
+        Choices:
+        0. A fusion weapon is a three-stage-bomb that uses an implosion device to create a fission reaction, which then detonates a fusion reaction. It is often referred to as a thermo-nuclear or hydrogen device and has unlimited destructive potential.
+        1. A fusion reaction is created when the nuclei of two light elements are combined, the reaction resulting in heavier elements fragmenting into smaller parts. This fragmentation releases energy of limited destructive capacity, the extent of energy released dependent on the mass of material used.
+        2. A fusion device is a two-stage process where a gun-type device is used to trigger a series of fission reactions with the cumulative result being the production of a high energy flash explosion with unlimited thermal energy.
+        3. Fusion weapons have a highly specific destructive effect. The heavier element produced from a fissions reaction, and the difference in mass from the two lighter nuclei (which is translated into an energy explosion) can be precision calculated. Bombs even within the multi-megaton range have unlimited military utility, their destructive capability can be manufactured according to the target.
+        Answer: A fusion weapon is a three-stage-bomb that uses an implosion device to create a fission reaction, which then detonates a fusion reaction. It is often referred to as a thermo-nuclear or hydrogen device and has unlimited destructive potential.
+
+        Question: Which of these statements concerning the study of identity is not applicable to social constructivism?
+        Choices:
+        0. Identity defines actors, and tells us who they are, what their preferences and interests are, and how those preferences might inform their actions.
+        1. Identity is of fundamental importance to the social constructivist perspective because it is the basest principle in defining behaviour; it is a naturally bestowed quality comprised of certain unalterable behavioural characteristics.
+        2. The identities, interests and behaviour of political agents are socially constructed by shared ideas, collective meaning, and interpretations and assumptions about the world.
+        3. Actors form their identity through interaction, which in turn defines the types of relationship formed between these actors.
+        Answer: Identity is of fundamental importance to the social constructivist perspective because it is the basest principle in defining behaviour; it is a naturally bestowed quality comprised of certain unalterable behavioural characteristics.
+              
+        Question: Which of the following best describes the balance the Supreme Court has struck between the establishment clause and the free-exercise clause?
+        Choices:
+        0. Freedom of speech is protected except in certain situations, such as yelling "fire" in a crowded theater.
+        1. Once a church has been recognized by the federal government, its tax-exempt status can never be revoked.
+        2. Once Congress has created an administrative agency, that agency can be dissolved only by a constitutional amendment.
+        3. State-sponsored prayer during school hours is prohibited, but voluntary prayer by student groups before school is allowed.
+        Answer: 
+        ```
+      * Label
+        ```
+        State-sponsored prayer during school hours is prohibited, but voluntary prayer by student groups before school is allowed.
+        ```
+
 
 <br>
 <br>
@@ -189,13 +178,13 @@
 <br>
 
 ## Command example
-  * Command example on my server
+  * Command example
     ```bash
     python /home/sangha110495/project/Llama-Instruction-Tuning/src/run_finetune.py \
-        --model_path="/mnt/disks/persist-standard/llama/llama-2-7b-hf" \
-        --tokenizer_path="/mnt/disks/persist-standard/llama/llama-2-7b-hf" \
-        --instruction_datasets="[arc,mmlu,gsm8k,alpaca,cot-collection,slimorca]" \
-        --dataset_sizes="[3000,3000,3000,1000,2000,2000]" \
+        --model_path="/mnt/disks-standard/persist/llama/llama-2-7b-hf" \
+        --tokenizer_path="/mnt/disks-standard/persist/llama/llama-2-7b-hf" \
+        --instruction_datasets="[arc,mmlu,gsm8k,alpaca,cot-collection,slimorca,openorca-multiplechoice]" \
+        --dataset_sizes="[3000,3000,3000,2500,2500,2500,2500]" \
         --evaluation_datasets="[truthful_qa-generation,truthful_qa-multiple_choice,gsm8k,arc,mmlu]" \
         --evaluation_shots="[0,0,5,10,5]" \
         --random_seed=42 \
@@ -206,14 +195,13 @@
         --eval_sequence_max_length=1536 \
         --generation_max_length=128 \
         --gradient_checkpointing=True \
-        --evaluation_strategy="steps" \
-        --eval_steps=500 \
+        --evaluation_strategy="epoch" \
         --logging_dir="/home/sangha110495/project/Llama-Instruction-Tuning/logging" \
-        --output_dir="/mnt/disks/persist-standard/llm/llama-instruction-tuning/exps/checkpoints" \
-        --cache_dir="/mnt/disks/persist-standard/huggingface" \
+        --output_dir="/mnt/disks-standard/persist/llm/llama-instruction-tuning/exps/checkpoints" \
+        --cache_dir="/mnt/disks-standard/persist/huggingface" \
         --num_train_epochs=3 \
         --weight_decay=1e-2 \
-        --warmup_ratio=0.0 \
+        --warmup_ratio=0.1 \
         --learning_rate=3e-5 \
         --lr_scheduler_type="constant" \
         --logging_steps=100
