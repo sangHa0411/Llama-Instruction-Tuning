@@ -132,8 +132,8 @@ class Trainer :
         generated_sequences = [seq.split("</s>")[0] for seq in self.tokenizer.batch_decode(generated)]
 
         for i, generated_seq in enumerate(generated_sequences) :
-            if "\n\n\n\n" in generated_seq :
-                generated_seq = generated_seq.split("\n\n\n\n")[0]
+            if "\n\n" in generated_seq :
+                generated_seq = generated_seq.split("\n\n")[0]
                 generated_sequences[i] = generated_seq
                 
         return generated_sequences

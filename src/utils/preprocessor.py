@@ -22,7 +22,7 @@ class InstructionDatasetPreprocessor :
         self.tokenizer = tokenizer
         self.sequence_max_length = sequence_max_length
         self.label_pad_token_id = label_pad_token_id
-        self.num_cores = multiprocessing.cpu_count() // 3
+        self.num_cores = max(multiprocessing.cpu_count() // 3, 1)
 
         self.preprocessors = {
             "alpaca" : AlpacaPreprocessor(tokenizer, sequence_max_length, label_pad_token_id),
@@ -49,8 +49,14 @@ class InstructionDatasetPreprocessor :
 
                 preprocess_fn = preprocessor.preprocess
                 preprocessed = dataset.map(preprocess_fn, batched=True, num_proc=self.num_cores, remove_columns=dataset.column_names)
+
+                preprocessed_example = preprocessed[0]["input_ids"]
+                preprocessed_example = self.tokenizer.decode(preprocessed_example)
+
+                logging.info(f"Preprocessed dataset | {dataset_name}\n### EXAMPLE\n\n{preprocessed_example}\n\n")
+
                 preprocessed_datasets.append(preprocessed)  
-        
+
         preprocessed_datasets = concatenate_datasets(preprocessed_datasets)
         return preprocessed_datasets
 
@@ -193,9 +199,9 @@ class SlimOrcaPreprocessor :
             subject = conversation[i]["from"]
             value = conversation[i]["value"]
             
-            chat = f"From: {subject}\n Value: {value}\n"
+            chat = f"From: {subject} Value: {value}"
             history.append(chat)
-        context = "".join(history)
+        context = "\n".join(history)
 
         return {
             "context" : context,
@@ -214,8 +220,8 @@ class SlimOrcaPreprocessor :
             context = splited["context"]
             response = splited["response"]
 
-            all_text = context + f"Gpt: {response}"
-            source_text = context + "Gpt: "
+            all_text = context + f"\nGpt: {response}"
+            source_text = context + "\nGpt: "
            
             all_input_id = self.tokenizer(
                 all_text, 
@@ -325,11 +331,11 @@ class MmluPreprocessor :
             choice = choices[i]
             answer = answers[i]
 
-            candidate_answer = " ".join([f"{i}. {c}" for i, c in enumerate(choice)])
+            candidate_answer = "\n".join([f"{i}. {c}" for i, c in enumerate(choice)])
             target_text = choice[answer]
 
-            all_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: {target_text}"
-            source_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: "
+            all_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: {target_text}"
+            source_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: "
 
             all_input_id = self.tokenizer(
                 all_text, 
@@ -384,7 +390,7 @@ class ArcPreprocessor :
             choice = choices[i]
             answer_key = answer_keys[i]
 
-            candidate_answer = " ".join([f"{l}. {t}" for t, l in zip(choice["text"], choice["label"])])
+            candidate_answer = "\n".join([f"{l}. {t}" for t, l in zip(choice["text"], choice["label"])])
             if ord(answer_key) >= ord("A") :
                 target_id = ord(answer_key) - ord("A") 
             else :
@@ -392,8 +398,8 @@ class ArcPreprocessor :
 
             target_text = choice["text"][target_id]
 
-            all_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: {target_text}"
-            source_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: "
+            all_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: {target_text}"
+            source_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: "
 
             all_input_id = self.tokenizer(
                 all_text, 
@@ -448,11 +454,11 @@ class HellaswagPreprocessor :
             ending = endings[i]
             answer = int(answers[i])
             
-            candidate_ending = " ".join([f"{i}. {e}" for i, e in enumerate(ending)])
+            candidate_ending = "\n".join([f"{i}. {e}" for i, e in enumerate(ending)])
             target_text = ending[answer]
 
-            all_text = f"Context: {context}\nChoices: {candidate_ending}\nAnswer: {target_text}"
-            source_text = f"Context: {context}\nChoices: {candidate_ending}\nAnswer: "
+            all_text = f"Context: {context}\nChoices:\n{candidate_ending}\nAnswer: {target_text}"
+            source_text = f"Context: {context}\nChoices:\n{candidate_ending}\nAnswer: "
 
             all_input_id = self.tokenizer(
                 all_text, 

@@ -21,7 +21,7 @@ class EvaluationDatasetPreprocessor :
         self.tokenizer = tokenizer
         self.sequence_max_length = sequence_max_length
         self.label_pad_token_id = label_pad_token_id
-        self.num_cores = multiprocessing.cpu_count() // 3
+        self.num_cores = max(multiprocessing.cpu_count() // 3, 1)
 
         self.preprocessors = {
             "arc" : EvalArcPreprocessor(tokenizer, sequence_max_length),
@@ -52,6 +52,13 @@ class EvaluationDatasetPreprocessor :
 
                 preprocess_fn = partial(preprocessor.preprocess, num_shot=num_shot)
                 preprocessed = dataset.map(preprocess_fn, batched=True, num_proc=self.num_cores, remove_columns=dataset.column_names)
+
+                preprocessed_example = preprocessed[0]["input_ids"]
+                preprocessed_label = preprocessed[0]["labels"]
+
+                preprocessed_example = self.tokenizer.decode(preprocessed_example)
+                logging.info(f"Preprocessed dataset | {dataset_name}\n### EXAMPLE\n\n{preprocessed_example}\n\n### LABEL\n{preprocessed_label}\n\n")
+
                 preprocessed_datasets[dataset_name] = preprocessed
 
         return preprocessed_datasets
@@ -81,9 +88,9 @@ class EvalArcPreprocessor :
             else :
                 target_id = int(answer_key) - 1
 
-            candidate_answer = " ".join([f"{l}. {t}" for t, l in zip(choice["text"], choice["label"])])
+            candidate_answer = "\n".join([f"{l}. {t}" for t, l in zip(choice["text"], choice["label"])])
             target_text = choice["text"][target_id]
-            input_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: {target_text}"
+            input_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: {target_text}"
             examples.append(input_text)
 
         few_shot_example = "\n\n".join(examples)
@@ -124,8 +131,8 @@ class EvalArcPreprocessor :
             choice = choices[i]
             answer_key = answer_keys[i]
 
-            candidate_answer = " ".join([f"{l}. {t}" for t, l in zip(choice["text"], choice["label"])])
-            input_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: "
+            candidate_answer = "\n".join([f"{l}. {t}" for t, l in zip(choice["text"], choice["label"])])
+            input_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: "
 
             if ord(answer_key) >= ord("A") :
                 target_id = ord(answer_key) - ord("A") 
@@ -184,10 +191,10 @@ class EvalMmluPreprocessor :
             choice = choices[i]
             answer = answers[i]
 
-            candidate_answer = " ".join([f"{i}. {c}" for i, c in enumerate(choice)])
+            candidate_answer = "\n".join([f"{i}. {c}" for i, c in enumerate(choice)])
             target_text = choice[answer]
 
-            input_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: {target_text}"
+            input_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: {target_text}"
             examples.append(input_text)
 
         few_shot_example = "\n\n".join(examples)
@@ -228,10 +235,10 @@ class EvalMmluPreprocessor :
             choice = choices[i]
             answer = answers[i]
 
-            candidate_answer = " ".join([f"({i}): {c}" for i, c in enumerate(choice)])
+            candidate_answer = "\n".join([f"{i}. {c}" for i, c in enumerate(choice)])
             target_text = choice[answer]
 
-            input_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: "
+            input_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: "
 
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
@@ -286,9 +293,9 @@ class EvalHellaswagPreprocessor :
             ending = endings[i]
             answer = int(answers[i])
 
-            candidate_ending = " ".join([f"{i}. {e}" for i, e in enumerate(ending)])
+            candidate_ending = "\n".join([f"{i}. {e}" for i, e in enumerate(ending)])
             target_text = ending[answer]
-            input_text = f"Context: {context}\nChoices: {candidate_ending}\nAnswer: {target_text}"
+            input_text = f"Context: {context}\nChoices:\n{candidate_ending}\nAnswer: {target_text}"
             examples.append(input_text)
 
         few_shot_example = "\n\n".join(examples)
@@ -329,9 +336,9 @@ class EvalHellaswagPreprocessor :
             ending = endings[i]
             answer = int(answers[i])
             
-            candidate_ending = " ".join([f"{i}. {e}" for i, e in enumerate(ending)])
+            candidate_ending = "\n".join([f"{i}. {e}" for i, e in enumerate(ending)])
 
-            input_text = f"Context: {context}\nChoices: {candidate_ending}\nAnswer: "
+            input_text = f"Context: {context}\nChoices:\n{candidate_ending}\nAnswer: "
             target_text = ending[answer]
 
             if num_shot > 0 :
@@ -570,11 +577,11 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
             question = questions[i]
             mc1_target = mc1_targets[i]
 
-            candidates = " ".join([f"({i}): {e}" for i, e in enumerate(mc1_target["choices"])])
+            candidates = "\n".join([f"{i}. {e}" for i, e in enumerate(mc1_target["choices"])])
             target_id = mc1_target["labels"].index(1)
             target_text = mc1_target["choices"][target_id]
 
-            input_text = f"Quesiton: {question}\nChoices: {candidates}\nAnswer: {target_text}"
+            input_text = f"Quesiton: {question}\nChoices:\n{candidates}\nAnswer: {target_text}"
             examples.append(input_text)
 
         few_shot_example = "\n\n".join(examples)
@@ -611,9 +618,9 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
         for i in range(size) :
             question = questions[i]
             mc1_target = mc1_targets[i]
-            candidates = " ".join([f"({i}): {e}" for i, e in enumerate(mc1_target["choices"])])
+            candidates = "\n".join([f"{i}. {e}" for i, e in enumerate(mc1_target["choices"])])
 
-            input_text = f"Question: {question}\nChoices: {candidates}\nAnswer: "
+            input_text = f"Question: {question}\nChoices:\n{candidates}\nAnswer: "
             target_id = mc1_target["labels"].index(1)
             target_text = mc1_target["choices"][target_id]
 
