@@ -81,24 +81,25 @@ class EvalArcPreprocessor :
             else :
                 target_id = int(answer_key) - 1
 
-            candidate_answer = " ".join([f"({l}): {t}" for t, l in zip(choice["text"], choice["label"])])
+            candidate_answer = " ".join([f"{l}. {t}" for t, l in zip(choice["text"], choice["label"])])
             target_text = choice["text"][target_id]
-            input_text = f"### QUESTION:\n{question}\n\n### CANDIDATE ANSWERS:\n{candidate_answer}\n\n### ANSWER:\n{target_text}"
+            input_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: {target_text}"
             examples.append(input_text)
 
-        few_shot_example = "\n\n\n\n".join(examples)
+        few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
 
-        input_shots = input_string.split("\n\n\n\n")
-        if input_shots[0][:3] != "###" :
+        input_shots = input_string.split("\n\n")
+        start_span = "Question: "
+        if input_shots[0][:len(start_span)] != start_span :
             input_shots = input_shots[1:]
 
         num_shots = len(input_shots) - 1
-        truncated_input_string = "\n\n\n\n".join(input_shots)
+        truncated_input_string = "\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
             max_length=self.sequence_max_length,
@@ -123,8 +124,8 @@ class EvalArcPreprocessor :
             choice = choices[i]
             answer_key = answer_keys[i]
 
-            candidate_answer = " ".join([f"({l}): {t}" for t, l in zip(choice["text"], choice["label"])])
-            input_text = f"### QUESTION:\n{question}\n\n### CANDIDATE ANSWERS:\n{candidate_answer}\n\n### ANSWER:\n"
+            candidate_answer = " ".join([f"{l}. {t}" for t, l in zip(choice["text"], choice["label"])])
+            input_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: "
 
             if ord(answer_key) >= ord("A") :
                 target_id = ord(answer_key) - ord("A") 
@@ -136,7 +137,7 @@ class EvalArcPreprocessor :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
                 few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
-                input_text = few_shot_example + "\n\n\n\n" + input_text
+                input_text = few_shot_example + "\n\n" + input_text
 
             input_id = self.tokenizer(
                 input_text, 
@@ -183,25 +184,26 @@ class EvalMmluPreprocessor :
             choice = choices[i]
             answer = answers[i]
 
-            candidate_answer = " ".join([f"({i}): {c}" for i, c in enumerate(choice)])
+            candidate_answer = " ".join([f"{i}. {c}" for i, c in enumerate(choice)])
             target_text = choice[answer]
 
-            input_text = f"### QUESTION:\n{question}\n\n### CHOICES:\n{candidate_answer}\n\n### ANSWER:\n{target_text}"
+            input_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: {target_text}"
             examples.append(input_text)
 
-        few_shot_example = "\n\n\n\n".join(examples)
+        few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
 
-        input_shots = input_string.split("\n\n\n\n")
-        if input_shots[0][:3] != "###" :
+        input_shots = input_string.split("\n\n")
+        start_span = "Question: "
+        if input_shots[0][:len(start_span)] != start_span :
             input_shots = input_shots[1:]
 
         num_shots = len(input_shots) - 1
-        truncated_input_string = "\n\n\n\n".join(input_shots)
+        truncated_input_string = "\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
             max_length=self.sequence_max_length,
@@ -229,13 +231,13 @@ class EvalMmluPreprocessor :
             candidate_answer = " ".join([f"({i}): {c}" for i, c in enumerate(choice)])
             target_text = choice[answer]
 
-            input_text = f"### QUESTION:\n{question}\n\n### CHOICES:\n{candidate_answer}\n\n### ANSWER:\n"
+            input_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: "
 
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
                 few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
-                input_text = few_shot_example + "\n\n\n\n" + input_text
+                input_text = few_shot_example + "\n\n" + input_text
 
             input_id = self.tokenizer(
                 input_text, 
@@ -273,34 +275,36 @@ class EvalHellaswagPreprocessor :
         self.sequence_max_length = sequence_max_length
 
     def _make_few_shot_example(self, datasets: List[Dict[str, Any]], sampled_ids: List[int]) :
+        activity_labels = datasets["activity_label"]
         ctxs = datasets["ctx"]
         endings = datasets["endings"]
         answers = datasets["label"]
 
         examples = []
         for i in sampled_ids :
-            context = ctxs[i]
+            context = activity_labels[i] + " " + ctxs[i]
             ending = endings[i]
             answer = int(answers[i])
 
-            candidate_ending = " ".join([f"({i}): {e}" for i, e in enumerate(ending)])
+            candidate_ending = " ".join([f"{i}. {e}" for i, e in enumerate(ending)])
             target_text = ending[answer]
-            input_text = f"### CONTEXT:\n{context}\n\n### CANDIDATE ENDINGS:\n{candidate_ending}\n\n### ANSWER:\n{target_text}"
+            input_text = f"Context: {context}\nChoices: {candidate_ending}\nAnswer: {target_text}"
             examples.append(input_text)
 
-        few_shot_example = "\n\n\n\n".join(examples)
+        few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
 
-        input_shots = input_string.split("\n\n\n\n")
-        if input_shots[0][:3] != "###" :
+        input_shots = input_string.split("\n\n")
+        start_span = "Context: "
+        if input_shots[0][:len(start_span)] != start_span :
             input_shots = input_shots[1:]
         
         num_shots = len(input_shots) - 1
-        truncated_input_string = "\n\n\n\n".join(input_shots)
+        truncated_input_string = "\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
             max_length=self.sequence_max_length,
@@ -311,6 +315,7 @@ class EvalHellaswagPreprocessor :
         return truncated_input_id, num_shots
 
     def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int) :
+        activity_labels = datasets["activity_label"]
         ctxs = datasets["ctx"]
         endings = datasets["endings"]
         answers = datasets["label"]
@@ -320,20 +325,20 @@ class EvalHellaswagPreprocessor :
 
         size = len(ctxs)
         for i in range(size) :
-            context = ctxs[i]
+            context = activity_labels[i] + " " + ctxs[i]
             ending = endings[i]
             answer = int(answers[i])
             
-            candidate_ending = " ".join([f"({i}): {e}" for i, e in enumerate(ending)])
+            candidate_ending = " ".join([f"{i}. {e}" for i, e in enumerate(ending)])
 
-            input_text = f"### CONTEXT:\n{context}\n\n### CANDIDATE ENDINGS:\n{candidate_ending}\n\n### ANSWER:\n"
+            input_text = f"Context: {context}\nChoices: {candidate_ending}\nAnswer: "
             target_text = ending[answer]
 
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
                 few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
-                input_text = few_shot_example + "\n\n\n\n" + input_text
+                input_text = few_shot_example + "\n\n" + input_text
 
             input_id = self.tokenizer(
                 input_text, 
@@ -379,22 +384,23 @@ class EvalGSM8KPreprocessor :
             question = questions[i]
             answer = answers[i]
 
-            input_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n{answer}"
+            input_text = f"Question: {question}\nAnswer: {answer}"
             examples.append(input_text)
 
-        few_shot_example = "\n\n\n\n".join(examples)
+        few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
 
-        input_shots = input_string.split("\n\n\n\n")
-        if input_shots[0][:3] != "###" :
+        input_shots = input_string.split("\n\n")
+        start_span = "Question: "
+        if input_shots[0][:len(start_span)] != start_span :
             input_shots = input_shots[1:]
 
         num_shots = len(input_shots) - 1
-        truncated_input_string = "\n\n\n\n".join(input_shots)
+        truncated_input_string = "\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
             max_length=self.sequence_max_length,
@@ -416,14 +422,14 @@ class EvalGSM8KPreprocessor :
             question = questions[i]
             answer = answers[i]
             
-            input_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n"
+            input_text = f"Question: {question}\nAnswer: "
             target_text = answer
 
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
                 few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
-                input_text = few_shot_example + "\n\n\n\n" + input_text
+                input_text = few_shot_example + "\n\n" + input_text
 
             input_id = self.tokenizer(
                 input_text, 
@@ -470,22 +476,23 @@ class EvalTruthfulQAGenerationPreprocessor :
             question = questions[i]
             answer = answers[i]
 
-            input_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n{answer}"
+            input_text = f"Question: {question}Answer: {answer}"
             examples.append(input_text)
 
-        few_shot_example = "\n\n\n\n".join(examples)
+        few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
 
-        input_shots = input_string.split("\n\n\n\n")
-        if input_shots[0][:3] != "###" :
+        input_shots = input_string.split("\n\n")
+        start_span = "Question: "
+        if input_shots[0][:len(start_span)] != start_span :
             input_shots = input_shots[1:]
 
         num_shots = len(input_shots) - 1
-        truncated_input_string = "\n\n\n\n".join(input_shots)
+        truncated_input_string = "\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
             max_length=self.sequence_max_length,
@@ -498,6 +505,7 @@ class EvalTruthfulQAGenerationPreprocessor :
     def preprocess(self, datasets: List[Dict[str, Any]], num_shot: int) :
         questions = datasets["question"]
         correct_answers = datasets["correct_answers"]
+        best_answers = datasets["best_answer"]
 
         input_ids, attention_masks, labels = [], [], []
         num_shots = []
@@ -507,15 +515,16 @@ class EvalTruthfulQAGenerationPreprocessor :
             
             question = questions[i]
             correct_answer = correct_answers[i]
+            best_answer = best_answers[i]
 
-            input_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n"
-            target_texts = correct_answer
+            input_text = f"Question: {question}\nAnswer: "
+            target_texts = [best_answer] + correct_answer
 
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
                 few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
-                input_text = few_shot_example + "\n\n\n\n" + input_text
+                input_text = few_shot_example + "\n\n" + input_text
 
             input_id = self.tokenizer(
                 input_text, 
@@ -565,22 +574,23 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
             target_id = mc1_target["labels"].index(1)
             target_text = mc1_target["choices"][target_id]
 
-            input_text = f"### QUESTION:\n{question}\n\n### CHOICES:\n{candidates}### ANSWER:\n{target_text}"
+            input_text = f"Quesiton: {question}\nChoices: {candidates}\nAnswer: {target_text}"
             examples.append(input_text)
 
-        few_shot_example = "\n\n\n\n".join(examples)
+        few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
 
-        input_shots = input_string.split("\n\n\n\n")
-        if input_shots[0][:3] != "###" :
+        input_shots = input_string.split("\n\n")
+        start_span = "Question: "
+        if input_shots[0][:len(start_span)] != start_span :
             input_shots = input_shots[1:]
 
         num_shots = len(input_shots) - 1
-        truncated_input_string = "\n\n\n\n".join(input_shots)
+        truncated_input_string = "\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
             max_length=self.sequence_max_length,
@@ -603,7 +613,7 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
             mc1_target = mc1_targets[i]
             candidates = " ".join([f"({i}): {e}" for i, e in enumerate(mc1_target["choices"])])
 
-            input_text = f"### QUESTION:\n{question}\n\n### CHOICES:\n{candidates}### ANSWER:\n"
+            input_text = f"Question: {question}\nChoices: {candidates}\nAnswer: "
             target_id = mc1_target["labels"].index(1)
             target_text = mc1_target["choices"][target_id]
 
@@ -611,7 +621,7 @@ class EvalTruthfulQAMultipleChoicePreprocessor :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
                 few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
-                input_text = few_shot_example + "\n\n\n\n" + input_text
+                input_text = few_shot_example + "\n\n" + input_text
 
             input_id = self.tokenizer(
                 input_text, 
@@ -662,22 +672,23 @@ class EvalWinograndePreprocessor :
             answer = answers[i]
             answer_text = option1 if answer == 1 else option2
 
-            input_text = f"### SENTENCE:\n{sentence}\n\n### OPTION1:\n{option1}\n\n### OPTION2:\n{option2}\n\n### ANSWER:\n{answer_text}"
+            input_text = f"Sentence: {sentence}\nOption1: {option1}\nOption2: {option2}\nAnswer: {answer_text}"
             examples.append(input_text)
 
-        few_shot_example = "\n\n\n\n".join(examples)
+        few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
 
-        input_shots = input_string.split("\n\n\n\n")
-        if input_shots[0][:3] != "###" :
+        input_shots = input_string.split("\n\n")
+        start_span = "Sentence: "
+        if input_shots[0][:len(start_span)] != len(start_span) :
             input_shots = input_shots[1:]
 
         num_shots = len(input_shots) - 1
-        truncated_input_string = "\n\n\n\n".join(input_shots)
+        truncated_input_string = "\n\n".join(input_shots)
         truncated_input_id = self.tokenizer(
             truncated_input_string, 
             max_length=self.sequence_max_length,
@@ -704,13 +715,13 @@ class EvalWinograndePreprocessor :
             answer = answers[i]
             answer_text = option1 if answer == 1 else option2
             
-            input_text = f"### SENTENCE:\n{sentence}\n\n### OPTION1:\n{option1}\n\n### OPTION2:\n{option2}\n\n### ANSWER:\n"
+            input_text = f"Sentence: {sentence}\nOption1: {option1}\nOption2: {option2}\nAnswer: "
 
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
                 few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
-                input_text = few_shot_example + "\n\n\n\n" + input_text
+                input_text = few_shot_example + "\n\n" + input_text
 
             input_id = self.tokenizer(
                 input_text, 

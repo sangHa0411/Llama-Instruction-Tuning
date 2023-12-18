@@ -81,11 +81,11 @@ class AlpacaPreprocessor :
             output_text = output_texts[i]
 
             if input_text != "" :
-                all_text = f"### INSTRUCTION:\n{instruction}\n\n### INPUT:\n{input_text}\n\n### RESPONSE:\n{output_text}"
-                source_text = f"### INSTRUCTION:\n{instruction}\n\n### INPUT:\n{input_text}\n\n### RESPONSE:\n"
+                all_text = f"Instruction: {instruction}\nInput: {input_text}\nResponse: {output_text}"
+                source_text = f"Instruction: {instruction}\nInput: {input_text}\nResponse: "
             else :
-                all_text = f"### INSTRUCTION:\n{instruction}\n\n### RESPONSE:\n{output_text}"
-                source_text = f"### INSTRUCTION:\n{instruction}\n\n### RESPONSE:\n"
+                all_text = f"Instruction: {instruction}\nResponse: {output_text}"
+                source_text = f"Instruction: {instruction}\nResponse: "
 
             all_input_id = self.tokenizer(
                 all_text, 
@@ -140,8 +140,8 @@ class CoTCollectionPreprocessor :
             rationale = rationales[i]
             target = targets[i]
 
-            all_text = f"### SOURCE:\n{source}\n\n### RATIONALE:\n{rationale}\n\n### TARGET:\n{target}"
-            source_text = f"### SOURCE:\n{source}\n\n### RATIONALE:\n"
+            all_text = f"Source: {source}\nRationale: {rationale}\nTarget: {target}"
+            source_text = f"Source: {source}\nRationale: {rationale}\nTarget: "
            
             all_input_id = self.tokenizer(
                 all_text, 
@@ -193,7 +193,7 @@ class SlimOrcaPreprocessor :
             subject = conversation[i]["from"]
             value = conversation[i]["value"]
             
-            chat = f"### FROM:\n{subject}\n\n### VALUE:\n{value}\n\n"
+            chat = f"From: {subject}\n Value: {value}\n"
             history.append(chat)
         context = "".join(history)
 
@@ -214,8 +214,8 @@ class SlimOrcaPreprocessor :
             context = splited["context"]
             response = splited["response"]
 
-            all_text = context + f"### GPT:\n{response}"
-            source_text = context + "### GPT:\n"
+            all_text = context + f"Gpt: {response}"
+            source_text = context + "Gpt: "
            
             all_input_id = self.tokenizer(
                 all_text, 
@@ -269,8 +269,8 @@ class OpenOrcaMCPreprocessor :
             question = questions[i]
             response = responses[i]
 
-            all_text = f"### INSTRUCTION:\n{prompt}\n\n### QUESTION:\n{question}\n\n### RESPONSE:\n{response}"
-            source_text = f"### INSTRUCTION:\n{prompt}\n\n### QUESTION:\n{question}\n\n### RESPONSE:\n"
+            all_text = f"Instruction: {prompt}\nQuestion: {question}\nResponse: {response}"
+            source_text = f"Instruction: {prompt}\nQuestion: {question}\nResponse: "
            
             all_input_id = self.tokenizer(
                 all_text, 
@@ -325,11 +325,11 @@ class MmluPreprocessor :
             choice = choices[i]
             answer = answers[i]
 
-            candidate_answer = " ".join([f"({i}): {c}" for i, c in enumerate(choice)])
+            candidate_answer = " ".join([f"{i}. {c}" for i, c in enumerate(choice)])
             target_text = choice[answer]
 
-            all_text = f"### QUESTION:\n{question}\n\n### CHOICES:\n{candidate_answer}\n\n### ANSWER:\n{target_text}"
-            source_text = f"### QUESTION:\n{question}\n\n### CHOICES:\n{candidate_answer}\n\n### ANSWER:\n"
+            all_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: {target_text}"
+            source_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: "
 
             all_input_id = self.tokenizer(
                 all_text, 
@@ -384,7 +384,7 @@ class ArcPreprocessor :
             choice = choices[i]
             answer_key = answer_keys[i]
 
-            candidate_answer = " ".join([f"({l}): {t}" for t, l in zip(choice["text"], choice["label"])])
+            candidate_answer = " ".join([f"{l}. {t}" for t, l in zip(choice["text"], choice["label"])])
             if ord(answer_key) >= ord("A") :
                 target_id = ord(answer_key) - ord("A") 
             else :
@@ -392,8 +392,8 @@ class ArcPreprocessor :
 
             target_text = choice["text"][target_id]
 
-            all_text = f"### QUESTION:\n{question}\n\n### CANDIDATE ANSWERS:\n{candidate_answer}\n\n### ANSWER:\n{target_text}"
-            source_text = f"### QUESTION:\n{question}\n\n### CANDIDATE ANSWERS:\n{candidate_answer}\n\n### ANSWER:\n"
+            all_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: {target_text}"
+            source_text = f"Question: {question}\nChoices: {candidate_answer}\nAnswer: "
 
             all_input_id = self.tokenizer(
                 all_text, 
@@ -435,6 +435,7 @@ class HellaswagPreprocessor :
         self.label_pad_token_id = label_pad_token_id
 
     def preprocess(self, datasets: List[Dict[str, Any]]):
+        activity_labels = datasets["activity_label"]
         ctxs = datasets["ctx"]
         endings = datasets["endings"]
         answers = datasets["label"]
@@ -443,15 +444,15 @@ class HellaswagPreprocessor :
 
         size = len(ctxs)
         for i in range(size) :
-            context = ctxs[i]
+            context = activity_labels[i] + " " + ctxs[i]
             ending = endings[i]
             answer = int(answers[i])
             
-            candidate_ending = " ".join([f"({i}): {e}" for i, e in enumerate(ending)])
+            candidate_ending = " ".join([f"{i}. {e}" for i, e in enumerate(ending)])
             target_text = ending[answer]
 
-            all_text = f"### CONTEXT:\n{context}\n\n### CANDIDATE ENDINGS:\n{candidate_ending}\n\n### ANSWER:\n{target_text}"
-            source_text = f"### CONTEXT:\n{context}\n\n### CANDIDATE ENDINGS:\n{candidate_ending}\n\n### ANSWER:\n{target_text}"
+            all_text = f"Context: {context}\nChoices: {candidate_ending}\nAnswer: {target_text}"
+            source_text = f"Context: {context}\nChoices: {candidate_ending}\nAnswer: "
 
             all_input_id = self.tokenizer(
                 all_text, 
@@ -503,8 +504,8 @@ class GSM8KPreprocessor :
             question = questions[i]
             answer = answers[i]
             
-            all_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n{answer}"
-            source_text = f"### QUESTION:\n{question}\n\n### ANSWER:\n"
+            all_text = f"Question: {question}\nAnswer: {answer}"
+            source_text = f"Question: {question}\nAnswer: "
 
             all_input_id = self.tokenizer(
                 all_text, 
@@ -561,8 +562,8 @@ class WinograndePreprocessor :
             answer = answers[i]
             answer_text = option1 if answer == 1 else option2
             
-            all_text = f"### SENTENCE:\n{sentence}\n\n### OPTION1:\n{option1}\n\n### OPTION2:\n{option2}\n\n### ANSWER:\n{answer_text}"
-            source_text = f"### SENTENCE:\n{sentence}\n\n### OPTION1:\n{option1}\n\n### OPTION2:\n{option2}\n\n### ANSWER:\n"
+            all_text = f"Sentence: {sentence}\nOption1: {option1}\nOption2: {option2}\nAnswer: {answer_text}"
+            source_text = f"Sentence: {sentence}\nOption1: {option1}\nOption2: {option2}\nAnswer: "
 
             all_input_id = self.tokenizer(
                 all_text, 
