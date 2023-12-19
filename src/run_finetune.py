@@ -23,13 +23,9 @@ from transformers import (
     LlamaTokenizer,
     LlamaForCausalLM
 )
-from jax_smi import initialise_tracking
 
 logging.basicConfig(format = "[%(asctime)s][%(levelname)s][Message] - %(message)s", level = logging.INFO)
 logging.Formatter.converter = lambda *args: datetime.now(tz=timezone("Asia/Seoul")).timetuple()
-
-# For tpu memory and usage monitoring, using "jax-smi" command in terminal
-initialise_tracking()
 
 def get_model_and_tokenizer(args) -> Tuple[LlamaConfig, LlamaForCausalLM, LlamaTokenizer]:
 

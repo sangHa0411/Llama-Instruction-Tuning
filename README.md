@@ -129,6 +129,10 @@
         ```
         State-sponsored prayer during school hours is prohibited, but voluntary prayer by student groups before school is allowed.
         ```
+      * Metric
+        * EleutherAI/lm-evaluation-harness measure score using Rank accuracy for Multiple Choice Datasets like MMLU and ARC.
+        * This repository measure score using **exact match** between model's generation and label for Multiple Choice Datasets, so model should generate one of 4 choices exactly the same.
+
 
 <br>
 <br>
@@ -170,8 +174,8 @@
     ```
   * Trainer functions
     * In ```utils/trainer.py```, Trainer class has 3 functions (train, evaluate, save_model).
-       * ```evaluate(self, num_trainin_step)``` : Evaluate benchmarks which given from **evaluation_datasets** argument.
-       * ```save_model(self, num_training_step: int, output_dir: str)```  : Convert trained parameters to huggingface(LlamaForCausalLM) model format and save checkpoint at output_dir
+       * ```evaluate(self, params, num_trainin_step)``` : Evaluate benchmarks which given from **evaluation_datasets** argument.
+       * ```save_model(self, params, num_training_step: int, output_dir: str)```  : Convert trained parameters to huggingface(LlamaForCausalLM) model format and save checkpoint at output_dir
        * ```train(self, )```  : Train instruction dataset. While training, evalate and save model regularly.
        
 <br>
