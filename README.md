@@ -183,10 +183,10 @@
     python /home/sangha110495/project/Llama-Instruction-Tuning/src/run_finetune.py \
         --model_path="/mnt/disks-standard/persist/llama/llama-2-7b-hf" \
         --tokenizer_path="/mnt/disks-standard/persist/llama/llama-2-7b-hf" \
-        --instruction_datasets="[arc,mmlu,gsm8k,alpaca,cot-collection,slimorca,openorca-multiplechoice]" \
+        --instruction_datasets="[arc,mmlu,gsm8k,alpaca,cot-collection,slimorca,openorca-mc10k]" \
         --dataset_sizes="[3000,3000,3000,2500,2500,2500,2500]" \
         --evaluation_datasets="[truthful_qa-generation,truthful_qa-multiple_choice,gsm8k,arc,mmlu]" \
-        --evaluation_shots="[0,0,5,10,5]" \
+        --evaluation_shots="[0,0,5,25,5]" \
         --random_seed=42 \
         --padding_side="left" \
         --per_device_train_batch_size=8 \
