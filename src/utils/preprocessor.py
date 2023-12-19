@@ -201,7 +201,7 @@ class SlimOrcaPreprocessor :
             subject = conversation[i]["from"]
             value = conversation[i]["value"]
             
-            chat = f"From: {subject} Value: {value}"
+            chat = f"<|im_start|>{subject}\n{value}<|im_end|>"
             history.append(chat)
         context = "\n".join(history)
 
@@ -222,8 +222,8 @@ class SlimOrcaPreprocessor :
             context = splited["context"]
             response = splited["response"]
 
-            all_text = context + f"\nFrom: gpt Value: {response}"
-            source_text = context + "\nFrom: gpt Value: "
+            all_text = context + f"\n<|im_start|>gpt\n{response}<|im_end|>"
+            source_text = context + "\n<|im_start|>gpt\n"
            
             all_input_id = self.tokenizer(
                 all_text, 
