@@ -164,7 +164,7 @@ class InstructionDatasetLoader :
 
     
 
-class EvalDatasetLoader :
+class EvaluationDatasetLoader :
 
     def __init__(self, datasets: str, cache_dir: Optional[str]=None) :
         self.datasets = datasets[1:-1].split(",")
@@ -203,9 +203,9 @@ class EvalDatasetLoader :
             elif "hellaswag" in dataset_name :
                 dataset_path = "Rowan/hellaswag"
                 if self.cache_dir is not None :
-                    dataset = load_dataset(dataset_path, split="test", cache_dir=self.cache_dir)
+                    dataset = load_dataset(dataset_path, split="validation", cache_dir=self.cache_dir)
                 else :
-                    dataset = load_dataset(dataset_path, split="test")
+                    dataset = load_dataset(dataset_path, split="validation")
 
             elif "gsm8k" in dataset_name :
                 dataset_path = "gsm8k"

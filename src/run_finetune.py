@@ -12,7 +12,7 @@ from jax.sharding import Mesh
 from jax.experimental import mesh_utils
 from data.collator import Seq2SeqCollator
 from model.convert import ParameterConvertor
-from utils.loader import InstructionDatasetLoader, EvalDatasetLoader
+from utils.loader import InstructionDatasetLoader, EvaluationDatasetLoader
 from utils.preprocessor import InstructionDatasetPreprocessor
 from eval.eval_preprocessor import EvaluationDatasetPreprocessor
 from data.collator import Seq2SeqCollator
@@ -79,7 +79,7 @@ def train(args):
     logging.info(f"Instruction dataset:{instruction_dataset}")
     
     ## Evaluation Dataset
-    eval_dataset_loader = EvalDatasetLoader(
+    eval_dataset_loader = EvaluationDatasetLoader(
         datasets=args.evaluation_datasets,
         cache_dir=args.cache_dir
     )
