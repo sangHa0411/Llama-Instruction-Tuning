@@ -186,7 +186,7 @@ class Trainer :
                     "candidate_length" : candidate_lengths
                 }
             )
-            eval_category = "multiiple_choice"
+            eval_category = "multiple_choice"
         else :          
             eval_category = "generation"      
 
@@ -210,8 +210,8 @@ class Trainer :
         jax_model = self.model
 
         @jax.jit
+        # Generate sequence from input_ids
         def generate_step(params, input_ids: jnp.ndarray, attention_mask: jnp.array) :
-            # Generate sequence from input_ids
             generations = jax_model.generate(
                 input_ids=input_ids, 
                 attention_mask=attention_mask, 
@@ -228,6 +228,7 @@ class Trainer :
             return generated_tokens
 
         @jax.jit
+        # Get sequence logit from input_ids
         def forward_step(params, input_ids: jnp.ndarray, attention_mask: jnp.array) :
             batch_size = input_ids.shape[0]
 
@@ -272,11 +273,15 @@ class Trainer :
             eval_dataset, eval_category = self.prepare_evaluation_datasets(eval_dataset)
             logging.info(f"Evaluation dataset name : {dataset_name} | dataset category: {eval_category}\ndataset category: {eval_dataset}")
 
+            eval_batch_size = self.args.per_device_eval_forward_batch_size \
+                if eval_category == "multiple_choice" else \
+                self.args.per_device_eval_generate_batch_size
+            
             eval_loader = data_loader(
                 rng=dropout_rng, 
                 dataset=eval_dataset, 
                 data_collator=eval_data_collator,
-                batch_size=self.args.per_device_eval_batch_size, 
+                batch_size=eval_batch_size, 
                 shuffle=False,
                 drop_last=True
             )
@@ -284,12 +289,13 @@ class Trainer :
                 "sequence_log_prob" : [], 
                 "generation" : []
             }
-            eval_steps = len(eval_dataset) // self.args.per_device_eval_batch_size
+            eval_steps = len(eval_dataset) // eval_batch_size
     
             with tqdm(total=eval_steps, desc="Evaluation", leave=False) as progress_bar_eval :
                 for eval_data in eval_loader :
                     input_ids = eval_data["input_ids"]
                     attention_mask = eval_data["attention_mask"]
+                    
                     if eval_category == "generation" :
                         output_tokens = generate_step(jax_params, input_ids, attention_mask)
                         generated_sequences = self.decode_output_tokens(output_tokens)

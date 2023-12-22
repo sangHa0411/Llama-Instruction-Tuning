@@ -64,11 +64,11 @@ class EvaluationDatasetPreprocessor :
                     num_sequence = len(preprocessed_example)
                     preprocessed_example = self.tokenizer.decode(preprocessed_example[0])
 
-                # Arc, Hrllaswag, Mmlu, Winogrande
+                # ARC, Hellaswag, MMLU, Winogrande
                 if isinstance(preprocessed_label, int) :
                     logging.info(f"Preprocessed dataset | {dataset_name}\n### The number of candidate in data: {num_sequence}\n\n### First candidate in data\n{preprocessed_example}\n\n### Answer candidate index\n{preprocessed_label}\n\n")
                 else :
-                    # Truthful QA
+                    # TruthfulQA
                     if isinstance(preprocessed_label, list) :
                         logging.info(f"Preprocessed dataset | {dataset_name}\n### The number of candidate in data: {num_sequence}\n\n### First candidate in data\n{preprocessed_example}\n\n### Candidates' label\n{preprocessed_label}\n\n")
                     # GSM8K
@@ -87,6 +87,7 @@ class EvalArcPreprocessor :
         self.tokenizer = tokenizer
         self.sequence_max_length = sequence_max_length
 
+    # Make few shot example prompt
     def _make_few_shot_example(self, datasets: List[Dict[str, Any]], sampled_ids: List[int]) :
         questions = datasets["question"]
         choices = datasets["choices"]
@@ -110,6 +111,7 @@ class EvalArcPreprocessor :
         few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
+    # Delete if first shot is truncated
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
@@ -147,11 +149,13 @@ class EvalArcPreprocessor :
             answer_key = answer_keys[i]
 
             input_text = f"Question: {question}\nAnswer: "
-
+            # if answer_key is one of A, B, C or D, change answer key to integer
             if ord(answer_key) >= ord("A") :
                 target_id = ord(answer_key) - ord("A") 
+            # Answer key is one of 1, 2, 3 or 4
             else :
                 target_id = int(answer_key) - 1
+            # Answer candidate index
             labels.append(target_id)
 
             if num_shot > 0 :
@@ -162,6 +166,7 @@ class EvalArcPreprocessor :
 
             sub_data_ids, sub_input_ids, sub_attention_mask = [], [], []
             sub_candidate_lengths = []
+            # Preprocess all candidates using same prompt
             for j in range(len(choice["text"])) :
                 candidate = choice["text"][j]
                 input_text = input_text + candidate
@@ -181,13 +186,14 @@ class EvalArcPreprocessor :
 
                 sub_data_ids.append(data_id+f"-{j}")
 
-                candidate_length = self.tokenizer(
+                # Store candidate's token length for acc_norm
+                candidate_ids = self.tokenizer(
                     candidate,
                     max_length=self.sequence_max_length,
                     truncation='do_not_truncate',
                     add_special_tokens=False
                 ).input_ids
-                sub_candidate_lengths.append(len(candidate_length))
+                sub_candidate_lengths.append(len(candidate_ids))
 
             cur_data_ids.append(sub_data_ids)
 
@@ -215,6 +221,7 @@ class EvalMmluPreprocessor :
         self.tokenizer = tokenizer
         self.sequence_max_length = sequence_max_length
 
+    # Make few shot example prompt
     def _make_few_shot_example(self, datasets: List[Dict[str, Any]], sampled_ids: List[int]) :
         questions = datasets["question"]
         choices = datasets["choices"]
@@ -227,14 +234,15 @@ class EvalMmluPreprocessor :
             answer = answers[i]
 
             candidate_answer = "\n".join([f"{chr(i+65)}. {c}" for i, c in enumerate(choice)])
-            target_text = chr(answer+65)
+            target_text = choice[answer]
 
-            input_text = f"Question: {question}\n{candidate_answer}\nAnswer: {target_text}"
+            input_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: {target_text}"
             examples.append(input_text)
 
         few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
+    # Delete if first shot is truncated
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
@@ -272,9 +280,10 @@ class EvalMmluPreprocessor :
 
             answer = answers[i]
             labels.append(answer)
-
+            
+            # Choice should start from one of A, B, C or D
             candidate_answer = "\n".join([f"{chr(i + 65)}. {c}" for i, c in enumerate(choice)])
-            input_text = f"Question: {question}\n{candidate_answer}\nAnswer: "
+            input_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: "
 
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
@@ -284,8 +293,9 @@ class EvalMmluPreprocessor :
 
             sub_data_ids, sub_input_ids, sub_attention_mask = [], [], []
             sub_candidate_lengths = []
+            # Preprocess all candidates using same prompt
             for j in range(len(choice)) :
-                candidate = chr(j + 65)
+                candidate = choice[j]
                 input_text = input_text + candidate
 
                 input_id = self.tokenizer(
@@ -301,15 +311,16 @@ class EvalMmluPreprocessor :
                 sub_input_ids.append(input_id)
                 sub_attention_mask.append(attention_mask)
 
-                sub_data_ids.append(data_id+f"-{j}")
+                sub_data_ids.append(data_id+f"-{j}")    
 
-                candidate_length = self.tokenizer(
+                # Store candidate's token length for acc_norm
+                candidate_ids = self.tokenizer(
                     candidate,
                     max_length=self.sequence_max_length,
                     truncation='do_not_truncate',
                     add_special_tokens=False
                 ).input_ids
-                sub_candidate_lengths.append(len(candidate_length))
+                sub_candidate_lengths.append(len(candidate_ids))
 
             cur_data_ids.append(sub_data_ids)
 
@@ -337,6 +348,7 @@ class EvalHellaswagPreprocessor :
         self.tokenizer = tokenizer
         self.sequence_max_length = sequence_max_length
 
+    # Make few shot example prompt
     def _make_few_shot_example(self, datasets: List[Dict[str, Any]], sampled_ids: List[int]) :
         activity_labels = datasets["activity_label"]
         ctxs = datasets["ctx"]
@@ -356,6 +368,7 @@ class EvalHellaswagPreprocessor :
         few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
+    # Delete if first shot is truncated
     def _truncate(self, input_ids: List[int], activity_labels: List[str]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
@@ -401,12 +414,14 @@ class EvalHellaswagPreprocessor :
             answer = int(answers[i])
             labels.append(answer)
 
+            # Make few shot prompt
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
                 few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n" + input_text
 
+            # Preprocess all endings
             sub_data_ids, sub_input_ids, sub_attention_mask = [], [], []
             sub_candidate_lengths = []
             for j in range(len(ending)) :
@@ -428,13 +443,14 @@ class EvalHellaswagPreprocessor :
                 sub_input_ids.append(input_id)
                 sub_attention_mask.append(attention_mask)
 
-                candidate_length = self.tokenizer(
+                # Store candidate's token length for acc_norm
+                candidate_ids = self.tokenizer(
                     candidate,
                     max_length=self.sequence_max_length,
                     truncation='do_not_truncate',
                     add_special_tokens=False
                 ).input_ids
-                sub_candidate_lengths.append(len(candidate_length))
+                sub_candidate_lengths.append(len(candidate_ids))
 
             cur_data_ids.append(sub_data_ids)
 
@@ -462,6 +478,7 @@ class EvalGSM8KPreprocessor :
         self.tokenizer = tokenizer
         self.sequence_max_length = sequence_max_length
 
+    # Make few shot example prompt
     def _make_few_shot_example(self, datasets: List[Dict[str, Any]], sampled_ids: List[int]) :
         questions = datasets["question"]
         answers = datasets["answer"]
@@ -477,6 +494,7 @@ class EvalGSM8KPreprocessor :
         few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
+    # Delete if first shot is truncated
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
@@ -510,12 +528,14 @@ class EvalGSM8KPreprocessor :
             input_text = f"Question: {question}\nAnswer: "
             target_text = answer
 
+            # Make few shot prompt
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
                 few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
                 input_text = few_shot_example + "\n\n" + input_text
 
+            # Preprocess input_text and answer
             input_id = self.tokenizer(
                 input_text, 
                 max_length=self.sequence_max_length,
@@ -568,8 +588,9 @@ class EvalTruthfulQAPreprocessor :
             sub_candidate_lengths = []
 
             data_id_ptr = 0
+            # Preprocess correct answers
             for correct_ans in correct_answers :
-                input_text = question + " " + correct_ans
+                input_text = question + correct_ans
                 sub_labels.append(1)
 
                 input_id = self.tokenizer(
@@ -583,17 +604,19 @@ class EvalTruthfulQAPreprocessor :
                 sub_input_ids.append(input_id)
                 sub_attention_masks.append(attention_mask)
 
-                candidate_length = self.tokenizer(
+                # Store candidate's token length for mc2
+                candidate_ids = self.tokenizer(
                     correct_ans,
                     max_length=self.sequence_max_length,
                     truncation='do_not_truncate',
                     add_special_tokens=False
                 ).input_ids
-                sub_candidate_lengths.append(len(candidate_length))
+                sub_candidate_lengths.append(len(candidate_ids))
 
                 sub_data_ids.append(data_id+f"-{data_id_ptr}")
                 data_id_ptr += 1
 
+            # Preprocess incorrect answers
             for incorrect_ans in incorrect_answers :
                 input_text = question + incorrect_ans
                 sub_labels.append(0)
@@ -609,13 +632,14 @@ class EvalTruthfulQAPreprocessor :
                 sub_input_ids.append(input_id)
                 sub_attention_masks.append(attention_mask)
 
-                candidate_length = self.tokenizer(
+                # Store candidate's token length for mc2
+                candidate_ids = self.tokenizer(
                     incorrect_ans,
                     max_length=self.sequence_max_length,
                     truncation='do_not_truncate',
                     add_special_tokens=False
                 ).input_ids
-                sub_candidate_lengths.append(len(candidate_length))
+                sub_candidate_lengths.append(len(candidate_ids))
 
                 sub_data_ids.append(data_id+f"-{data_id_ptr}")
                 data_id_ptr += 1
@@ -647,6 +671,7 @@ class EvalWinograndePreprocessor :
         self.tokenizer = tokenizer
         self.sequence_max_length = sequence_max_length
 
+    # Make few shot example prompt
     def _make_few_shot_example(self, datasets: List[Dict[str, Any]], sampled_ids: List[int]) :
         sentences = datasets["sentence"]
         option1s = datasets["option1"]
@@ -671,6 +696,7 @@ class EvalWinograndePreprocessor :
         few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
+    # Delete if first shot is truncated
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
@@ -713,6 +739,7 @@ class EvalWinograndePreprocessor :
             answer = int(answers[i]) - 1
             labels.append(answer)
             
+            # Make 2 sequences using option1 and option2
             input_text_a = sentence.replace("_", option1)
             input_text_b = sentence.replace("_", option2)
 
@@ -728,8 +755,9 @@ class EvalWinograndePreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            candidate_lengths.append([sentence_a, sentence_b])
+            candidate_lengths.append([len(sentence_a), len(sentence_b)])
 
+            # Add few shot prompt
             if num_shot > 0 :
                 sampled_ids = np.random.choice(size, num_shot+1, replace=False)
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
@@ -738,6 +766,7 @@ class EvalWinograndePreprocessor :
                 input_text_a = few_shot_example + "\n\n" + input_text_a
                 input_text_b = few_shot_example + "\n\n" + input_text_b
 
+            # Preprocess input_text | option a
             input_id_a = self.tokenizer(
                 input_text_a, 
                 max_length=self.sequence_max_length,
@@ -748,6 +777,7 @@ class EvalWinograndePreprocessor :
                 input_id_a = self._truncate(input_id_a)
             attention_mask_a = [1]*len(input_id_a)
 
+            # Preprocess input_text | option b
             input_id_b = self.tokenizer(
                 input_text_b, 
                 max_length=self.sequence_max_length,
@@ -759,6 +789,7 @@ class EvalWinograndePreprocessor :
             attention_mask_b = [1]*len(input_id_b)
 
             cur_data_ids.append([data_id+f"-{0}", data_id+f"-{1}"])
+
             input_ids.append([input_id_a, input_id_b])
             attention_masks.append([attention_mask_a, attention_mask_b])
 
