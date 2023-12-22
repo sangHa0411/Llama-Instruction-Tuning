@@ -590,7 +590,7 @@ class EvalTruthfulQAPreprocessor :
             data_id_ptr = 0
             # Preprocess correct answers
             for correct_ans in correct_answers :
-                input_text = question + correct_ans
+                input_text = question + " " + correct_ans
                 sub_labels.append(1)
 
                 input_id = self.tokenizer(
@@ -618,7 +618,7 @@ class EvalTruthfulQAPreprocessor :
 
             # Preprocess incorrect answers
             for incorrect_ans in incorrect_answers :
-                input_text = question + incorrect_ans
+                input_text = question + " " + incorrect_ans
                 sub_labels.append(0)
 
                 input_id = self.tokenizer(
@@ -740,8 +740,11 @@ class EvalWinograndePreprocessor :
             labels.append(answer)
             
             # Make 2 sequences using option1 and option2
-            input_text_a = sentence.replace("_", option1)
-            input_text_b = sentence.replace("_", option2)
+            candidate_idx = sentence.index("_")
+
+            prefix_text = sentence[:candidate_idx] 
+            input_text_a = option1 + sentence[candidate_idx+1:]
+            input_text_b = option2 + sentence[candidate_idx+1:]
 
             sentence_a = self.tokenizer(
                 input_text_a, 
@@ -763,8 +766,8 @@ class EvalWinograndePreprocessor :
                 sampled_ids = list(set(sampled_ids) - set([i]))[:num_shot]
                 few_shot_example = self._make_few_shot_example(datasets, sampled_ids)
 
-                input_text_a = few_shot_example + "\n\n" + input_text_a
-                input_text_b = few_shot_example + "\n\n" + input_text_b
+                input_text_a = few_shot_example + "\n\n" + prefix_text + input_text_a
+                input_text_b = few_shot_example + "\n\n" + prefix_text + input_text_b
 
             # Preprocess input_text | option a
             input_id_a = self.tokenizer(
