@@ -497,17 +497,14 @@ class ArcPreprocessor :
             question = questions[i]
             choice = choices[i]
             answer_key = answer_keys[i]
-
-            candidate_answer = "\n".join([f"{l}. {t}" for t, l in zip(choice["text"], choice["label"])])
             if ord(answer_key) >= ord("A") :
                 target_id = ord(answer_key) - ord("A") 
             else :
                 target_id = int(answer_key) - 1
 
             target_text = choice["text"][target_id]
-
-            all_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: {target_text}"
-            source_text = f"Question: {question}\nChoices:\n{candidate_answer}\nAnswer: "
+            all_text = f"Question: {question}\nAnswer: {target_text}"
+            source_text = f"Question: {question}\nAnswer: "
 
             all_input_id = self.tokenizer(
                 all_text, 
@@ -560,13 +557,11 @@ class HellaswagPreprocessor :
         for i in range(size) :
             context = activity_labels[i] + " " + ctxs[i]
             ending = endings[i]
-            answer = int(answers[i])
-            
-            candidate_ending = "\n".join([f"{i}. {e}" for i, e in enumerate(ending)])
+            answer = int(answers[i])            
             target_text = ending[answer]
 
-            all_text = f"Context: {context}\nChoices:\n{candidate_ending}\nAnswer: {target_text}"
-            source_text = f"Context: {context}\nChoices:\n{candidate_ending}\nAnswer: "
+            all_text = f"Context: {context}\nAnswer: {target_text}"
+            source_text = f"Context: {context}\nAnswer: "
 
             all_input_id = self.tokenizer(
                 all_text, 
@@ -675,9 +670,13 @@ class WinograndePreprocessor :
             option2 = option2s[i]
             answer = answers[i]
             answer_text = option1 if answer == 1 else option2
-            
-            all_text = f"Sentence: {sentence}\nOption1: {option1}\nOption2: {option2}\nAnswer: {answer_text}"
-            source_text = f"Sentence: {sentence}\nOption1: {option1}\nOption2: {option2}\nAnswer: "
+
+            option_idx = sentence.index("_")
+            prefix_text = sentence[:option_idx]
+            target_text = answer_text + sentence[option_idx+1:]
+
+            all_text = f"Sentence: {prefix_text}{target_text}"
+            source_text = f"Sentence: {prefix_text}"
 
             all_input_id = self.tokenizer(
                 all_text, 
