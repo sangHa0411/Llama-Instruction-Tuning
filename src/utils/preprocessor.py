@@ -55,7 +55,7 @@ class InstructionDatasetPreprocessor :
                 preprocessed_example = preprocessed[0]["input_ids"]
                 preprocessed_example = self.tokenizer.decode(preprocessed_example)
 
-                logging.info(f"Preprocessed dataset | {dataset_name}\n### EXAMPLE\n\n{preprocessed_example}\n\n")
+                logging.info(f"Preprocessed dataset | {dataset_name}\n### EXAMPLE\n{preprocessed_example}\n\n")
 
                 preprocessed_datasets.append(preprocessed)  
 

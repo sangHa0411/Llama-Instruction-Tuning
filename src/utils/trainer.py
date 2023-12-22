@@ -6,7 +6,8 @@ import optax
 import logging
 import numpy as np
 import jax.numpy as jnp
-from typing import Dict, List
+from collections import defaultdict
+from typing import Dict, List, Tuple, Any
 from pytz import timezone
 from datetime import datetime
 from datasets import Dataset
@@ -15,6 +16,7 @@ from utils.loss import loss_fn
 from data.data_loader import data_loader
 from data.collator import Seq2SeqCollator
 from eval.metrics import InstructionMetrics
+from eval.postprocessor import Postprocessor
 from model.llama_model import FlaxLlaMaForCausalLM
 from transformers import LlamaTokenizer, LlamaConfig, LlamaForCausalLM
 from transformers.generation import GenerationConfig
@@ -88,6 +90,7 @@ class Trainer :
         os.makedirs(self.logging_path, exist_ok=True)
         self.writer = SummaryWriter(log_dir=self.logging_path)
 
+    # Save trained parameters after converting parameter to huggingface model's weight
     def save_model(self, params, num_training_step: int, output_dir: str) :
         logging.info(f"Saving trained weights [Step : {num_training_step}] | Directory: {output_dir}\n")
         flattend_params = flatten_dict(params)
@@ -127,6 +130,69 @@ class Trainer :
         model.load_state_dict(model_state_dict)
         model.save_pretrained(os.path.join(output_dir, f"checkpoint-{num_training_step}"))
 
+    # Postprocess evaluation results and score metrics
+    def score_prediction(self, dataset_name: str, dataset: Dataset, prediction: Dict[str, Any], labels:List[Any]) :
+        insturction_metrics = InstructionMetrics()
+        postprocessor = Postprocessor(tokenizer=self.tokenizer)
+
+        # Postprocess results for each evaluation dataset
+        if dataset_name == "mmlu" :
+            results = postprocessor.postprocess_multiplce_choice(dataset, prediction, labels)
+            metric = insturction_metrics.get_multiple_choice_acc(results)
+
+        elif dataset_name == "hellaswag" :
+            results = postprocessor.postprocess_multiplce_choice(dataset, prediction, labels)
+            metric = insturction_metrics.get_multiple_choice_acc(results)
+
+        elif dataset_name == "arc" :
+            results = postprocessor.postprocess_multiplce_choice(dataset, prediction, labels)
+            metric = insturction_metrics.get_multiple_choice_acc(results)
+
+        elif dataset_name == "truthful_qa" :
+            results = postprocessor.postprocess_tfqa_mc2(dataset, prediction, labels)
+            metric = insturction_metrics.get_truthful_qa_mc2(results)
+
+        elif dataset_name == "winogrande" :
+            results = postprocessor.postprocess_multiplce_choice(dataset, prediction, labels)
+            metric = insturction_metrics.get_multiple_choice_acc(results)
+
+        elif dataset_name == "gsm8k" :
+            results = postprocessor.postprocess_generations(dataset, prediction, labels)
+            metric = insturction_metrics.get_gsm8k_acc(results)
+
+        else :
+            raise NameError("Not valid evaluation dataset name")
+
+        return metric
+
+    # Flatten dataset's content for evaluation
+    def prepare_evaluation_datasets(self, eval_dataset: Dataset) -> Tuple[Dataset, List[Any], str] :
+        if isinstance(eval_dataset["input_ids"][0][0], list) : 
+            data_ids = eval_dataset["id"]
+            input_ids = eval_dataset["input_ids"]
+            attention_mask = eval_dataset["attention_mask"]
+            candidate_lengths = eval_dataset["candidate_length"]
+
+            data_ids = sum(data_ids, [])
+            input_ids = sum(input_ids, [])
+            attention_mask = sum(attention_mask, [])
+            candidate_lengths = sum(candidate_lengths, [])
+
+            eval_dataset = Dataset.from_dict(
+                {
+                    "id" : data_ids,
+                    "input_ids" : input_ids, 
+                    "attention_mask" : attention_mask,
+                    "candidate_length" : candidate_lengths
+                }
+            )
+            eval_category = "multiiple_choice"
+        else :          
+            eval_category = "generation"      
+
+        return eval_dataset, eval_category
+
+    # Decode generated token to string
     def decode_output_tokens(self, output_tokens: jnp.ndarray) -> List[str]:
         generated = output_tokens[:, -self.args.generation_max_length:]
         generated_sequences = [seq.split("</s>")[0] for seq in self.tokenizer.batch_decode(generated)]
@@ -138,14 +204,14 @@ class Trainer :
                 
         return generated_sequences
 
+    # Evaluation function
     def evaluate(self, params, num_trainin_step: int = 0) :
         jax_params = params
         jax_model = self.model
 
-        insturction_metrics = InstructionMetrics()
-
         @jax.jit
         def generate_step(params, input_ids: jnp.ndarray, attention_mask: jnp.array) :
+            # Generate sequence from input_ids
             generations = jax_model.generate(
                 input_ids=input_ids, 
                 attention_mask=attention_mask, 
@@ -158,8 +224,38 @@ class Trainer :
                     eos_token_id=self.tokenizer.eos_token_id, 
                 ), 
             )
-            out_tokens = generations.sequences
-            return out_tokens
+            generated_tokens = generations.sequences
+            return generated_tokens
+
+        @jax.jit
+        def forward_step(params, input_ids: jnp.ndarray, attention_mask: jnp.array) :
+            batch_size = input_ids.shape[0]
+
+            outputs = jax_model(
+                input_ids=input_ids, 
+                attention_mask=attention_mask,
+                params=params,
+                train=False
+            )
+            output_logits = outputs.logits
+
+            # Output logit and log probabilities for input sequence
+            sequence_logits = output_logits[:, :-1]
+            sequence_log_probs = jax.nn.log_softmax(sequence_logits, axis=-1)
+
+            # Answer token for input_sequence
+            sequence_labels = input_ids[:, 1:]
+
+            sequence_log_prob_results = []
+            for i in range(batch_size) :
+                sequence_label = sequence_labels[i]
+                sequence_id = jnp.arange(len(sequence_label))
+
+                # Sequence log probability for label token
+                sequence_log_prob = sequence_log_probs[i][sequence_id, sequence_label]
+                sequence_log_prob_results.append(sequence_log_prob)
+                
+            return sequence_log_prob_results
 
         rng = jax.random.PRNGKey(self.args.random_seed)
         rng, dropout_rng = jax.random.split(rng)
@@ -169,11 +265,12 @@ class Trainer :
         logging.info("Evaluation Starts")
         for dataset_name in self.eval_datasets :
             eval_dataset = self.eval_datasets[dataset_name]
-            logging.info(f"Evaluation dataset name : {dataset_name} | dataset information : {eval_dataset}\n")
-
             eval_labels = eval_dataset["labels"]
-            eval_num_used_shots = eval_dataset["num_shot"]
-            eval_dataset = eval_dataset.remove_columns(["labels", "num_shot"])
+
+            eval_dataset = eval_dataset.remove_columns(["labels"])
+
+            eval_dataset, eval_category = self.prepare_evaluation_datasets(eval_dataset)
+            logging.info(f"Evaluation dataset name : {dataset_name} | dataset category: {eval_category}\ndataset category: {eval_dataset}")
 
             eval_loader = data_loader(
                 rng=dropout_rng, 
@@ -183,60 +280,34 @@ class Trainer :
                 shuffle=False,
                 drop_last=True
             )
-            eval_predictions = []
-
-            if len(eval_labels) % self.args.per_device_eval_batch_size > 0 :
-                eval_steps = len(eval_labels) // self.args.per_device_eval_batch_size + 1
-            else :
-                eval_steps = len(eval_labels) // self.args.per_device_eval_batch_size
+            eval_predictions = {
+                "sequence_log_prob" : [], 
+                "generation" : []
+            }
+            eval_steps = len(eval_dataset) // self.args.per_device_eval_batch_size
     
             with tqdm(total=eval_steps, desc="Evaluation", leave=False) as progress_bar_eval :
-
                 for eval_data in eval_loader :
                     input_ids = eval_data["input_ids"]
                     attention_mask = eval_data["attention_mask"]
-                    output_tokens = generate_step(jax_params, input_ids, attention_mask)
-                    generated_sequences = self.decode_output_tokens(output_tokens)
-    
-                    eval_predictions.extend(generated_sequences)
+                    if eval_category == "generation" :
+                        output_tokens = generate_step(jax_params, input_ids, attention_mask)
+                        generated_sequences = self.decode_output_tokens(output_tokens)
+
+                        eval_predictions["generation"].extend(generated_sequences)
+                    else :
+                        sequence_log_probs = forward_step(jax_params, input_ids, attention_mask)
+                        eval_predictions["sequence_log_prob"].extend(sequence_log_probs)
 
                     progress_bar_eval.update(1)
 
-                # Making evaluation results json file and save
-                eval_labels = eval_labels[:len(eval_predictions)]
-                eval_num_used_shots = eval_num_used_shots[:len(eval_predictions)]
-
-                eval_results = {}
-                for i, (pred, label) in enumerate(zip(eval_predictions, eval_labels)) :
-                    eval_results[i] = {
-                        "few-shot" : eval_num_used_shots[i],
-                        "prediction" : pred,
-                        "label" : label
-                    }
-
-                results_logging_dir = os.path.join(self.logging_path, f"{dataset_name}")
-                os.makedirs(results_logging_dir, exist_ok=True)
-
-                results_logging_path = os.path.join(results_logging_dir, f"checkpoint-{num_trainin_step}.json")
-                with open(results_logging_path, "w") as f :
-                    json.dump(eval_results, f, ensure_ascii=False, indent=4)
-
-                # Get appropirate metric for each evaluation dataset
-                if dataset_name in ["arc", "mmlu", "hellaswag", "truthful_qa-multiple_choice", "winogrande"] :
-                    metric = insturction_metrics.get_multiple_exact_match(eval_predictions, eval_labels)
-                elif dataset_name == "gsm8k" :
-                    metric = insturction_metrics.get_gsm8k_accuracy(eval_predictions, eval_labels)
-                elif dataset_name == "truthful_qa-generation" :
-                    metric = insturction_metrics.get_truthful_qa_blue(eval_predictions, eval_labels)
-                else :
-                    raise NameError("Not valid evaluation dataset name")
-
+                metric = self.score_prediction(dataset_name, eval_dataset, eval_predictions, eval_labels)
                 logging.info(f"Evaluation dataset name : {dataset_name} | Score : {metric}\n")
                 for key in metric :
                     score = metric[key]
                     self.writer.add_scalar(f"{dataset_name}/{key}", score, global_step=num_trainin_step)
 
-
+    # Training function
     def train(self, ) :
         optimizer_update = self.optimizer.update
         opt_state = self.optimizer.init(self.params)

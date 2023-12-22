@@ -1,40 +1,78 @@
 
-import evaluate
-from typing import List
+import numpy as np
+from typing import Dict, Any
 
 class InstructionMetrics :
 
     def __init__(self, ) :
-        self.bleu_scorer = evaluate.load("bleu")
+        pass
 
-    def get_multiple_exact_match(self, predictions: List[str], labels: List[str]) :
-        assert len(predictions) == len(labels)
+    def get_multiple_choice_acc(self, results: Dict[str, Any]) :
+        total_acc, total_acc_norm = 0, 0
 
-        total_acc = 0
-        for p, l in zip(predictions, labels) :
-            if p.strip() == l.strip() :
+        for data_id in results :
+            result = results[data_id]
+            log_probs = result["log_prob"]
+            normalized_log_probs = result["normalized_log_prob"]
+            label = result["label"]
+
+            min_log_prob = min(log_probs)
+            min_normalized_log_prob = min(normalized_log_probs)
+
+            min_log_prob_idx = log_probs.index(min_log_prob)
+            min_normalized_log_prob_idx = normalized_log_probs.index(min_normalized_log_prob)
+
+            if min_log_prob_idx == label :
                 total_acc += 1
 
-        total_acc = total_acc / len(predictions)
-        return {"exact_match" : total_acc}
+            if min_normalized_log_prob_idx == label :
+                total_acc_norm += 1
 
-    def get_gsm8k_accuracy(self, predictions: List[str], labels: List[str]) :
-        assert len(predictions) == len(labels)
+        total_acc = total_acc / len(results)
+        total_acc_norm = total_acc_norm / len(results)
 
+        return {"acc" : total_acc, "acc_norm" : total_acc_norm}
+
+    def get_gsm8k_acc(self, results: Dict[str, Any]) :
         total_acc = 0
-        for p, l in zip(predictions, labels) :
-            p_tgt = p.split("####")[-1].strip()
-            l_tgt = l.split("####")[-1].strip()
+        for data_id in results :
+            result = results[data_id]
 
-            if p_tgt == l_tgt :
+            generation = result["generation"]
+            label = result["label"] 
+
+            generation_tgt = generation.split("####")[-1].strip()
+            label_tgt = label.split("####")[-1].strip()
+
+            if generation_tgt == label_tgt :
                 total_acc += 1
 
-        total_acc = total_acc / len(predictions)
+        total_acc = total_acc / len(results)
         return {"acc" : total_acc}
 
-    def get_truthful_qa_blue(self, predictions: List[str], labels: List[List[str]]) :
-        assert len(predictions) == len(labels)
+    def get_truthful_qa_mc2(self, results: Dict[str, Any]) :
+        mc2 = 0
+        for data_id in results :
+            result = results[data_id]
+            log_probs = result["log_prob"]
+            labels = result["label"]
 
-        score = self.bleu_scorer.compute(predictions=predictions, references=labels)
-        total_bleu = score["bleu"]
-        return {"blue" : total_bleu}
+            scores_true, scores_false = [], []
+            for i in range(len(labels)) :
+                label = labels[i]
+
+                if label == 1 :
+                    scores_true.append(log_probs[i])
+                else :
+                    scores_false.append(log_probs[i])
+
+            probs_true = np.exp(scores_true)
+            probs_false = np.exp(scores_false)
+
+            probs_true = probs_true / (sum(probs_true) + sum(probs_false))
+            mc2 += sum(probs_true)
+
+        mc2 /= len(results)
+        total_mc2 = {"mc2" : mc2}    
+        return total_mc2
+

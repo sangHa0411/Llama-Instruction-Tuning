@@ -216,15 +216,12 @@ class EvaluationDatasetLoader :
                 dataset = dataset["test"]
 
             elif "truthful_qa" in dataset_name :
-                assert dataset_name in ["truthful_qa-generation", "truthful_qa-multiple_choice"]
 
-                category = dataset_name.split("-")[1]
                 dataset_path = "truthful_qa"
                 if self.cache_dir is not None :
-                    dataset = load_dataset(dataset_path, category, cache_dir=self.cache_dir)
+                    dataset = load_dataset(dataset_path, "generation", cache_dir=self.cache_dir)
                 else :
-                    dataset = load_dataset(dataset_path, category)
-
+                    dataset = load_dataset(dataset_path, "generation")
                 dataset = dataset["validation"]
 
             elif "winogrande" in dataset_name :
@@ -236,11 +233,17 @@ class EvaluationDatasetLoader :
                 else :
                     dataset = load_dataset(dataset_path, dataset_name)
 
-                dataset = dataset["test"]
+                dataset = dataset["validation"]
                 dataset_name = "winogrande"
 
             else :
                 raise NameError("Not valid dataset name")
+
+            # Reset data_id for evaluation dataset
+            if "id" in dataset.column_names :
+                dataset = dataset.remove_columns(["id"])
+            dataset_ids = [f"{dataset_name}-{i}" for i in range(len(dataset))]
+            dataset = dataset.add_column("id", dataset_ids)
 
             datasets[dataset_name] = dataset
             

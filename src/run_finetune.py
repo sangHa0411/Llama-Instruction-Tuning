@@ -45,7 +45,7 @@ def get_model_and_tokenizer(args) -> Tuple[LlamaConfig, LlamaForCausalLM, LlamaT
     # Load tokenizer
     tokenizer = LlamaTokenizer.from_pretrained(args.tokenizer_path)
     tokenizer.pad_token_id = 0
-    tokenizer.padding_side = args.padding_side
+    tokenizer.padding_side = "left"
 
     # Load huggingface model
     logging.info("Load huggingface model")
