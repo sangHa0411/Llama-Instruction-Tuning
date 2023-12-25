@@ -569,8 +569,7 @@ class EvalTruthfulQAPreprocessor :
         assert num_shot == 0
         prev_data_ids = datasets["id"]
         questions = datasets["question"]
-        correct_answers_list = datasets["correct_answers"]
-        incorrect_answers_list = datasets["incorrect_answers"]
+        targets_list = datasets["mc2_targets"]
 
         cur_data_ids = []
         input_ids, attention_masks, labels = [], [], []
@@ -580,8 +579,9 @@ class EvalTruthfulQAPreprocessor :
         for i in range(size) :
             data_id = prev_data_ids[i]
             question = questions[i]
-            correct_answers = correct_answers_list[i]
-            incorrect_answers = incorrect_answers_list[i]
+
+            targets = targets_list[i]
+            target_choices, target_labels = targets["choices"], targets["labels"]
 
             sub_data_ids = []
             sub_input_ids, sub_attention_masks, sub_labels = [], [], []
@@ -589,9 +589,9 @@ class EvalTruthfulQAPreprocessor :
 
             data_id_ptr = 0
             # Preprocess correct answers
-            for correct_ans in correct_answers :
-                input_text = question + " " + correct_ans
-                sub_labels.append(1)
+            for candidate, label in zip(target_choices, target_labels) :
+                input_text = question + " " + candidate
+                sub_labels.append(label)
 
                 input_id = self.tokenizer(
                     input_text, 
@@ -606,7 +606,7 @@ class EvalTruthfulQAPreprocessor :
 
                 # Store candidate's token length for mc2
                 candidate_ids = self.tokenizer(
-                    correct_ans,
+                    candidate,
                     max_length=self.sequence_max_length,
                     truncation='do_not_truncate',
                     add_special_tokens=False
@@ -615,35 +615,7 @@ class EvalTruthfulQAPreprocessor :
 
                 sub_data_ids.append(data_id+f"-{data_id_ptr}")
                 data_id_ptr += 1
-
-            # Preprocess incorrect answers
-            for incorrect_ans in incorrect_answers :
-                input_text = question + " " + incorrect_ans
-                sub_labels.append(0)
-
-                input_id = self.tokenizer(
-                    input_text, 
-                    max_length=self.sequence_max_length,
-                    truncation='do_not_truncate',
-                    add_special_tokens=False
-                ).input_ids
-                attention_mask = [1]*len(input_id)
-
-                sub_input_ids.append(input_id)
-                sub_attention_masks.append(attention_mask)
-
-                # Store candidate's token length for mc2
-                candidate_ids = self.tokenizer(
-                    incorrect_ans,
-                    max_length=self.sequence_max_length,
-                    truncation='do_not_truncate',
-                    add_special_tokens=False
-                ).input_ids
-                sub_candidate_lengths.append(len(candidate_ids))
-
-                sub_data_ids.append(data_id+f"-{data_id_ptr}")
-                data_id_ptr += 1
-
+        
             cur_data_ids.append(sub_data_ids)
 
             input_ids.append(sub_input_ids)

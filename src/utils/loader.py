@@ -219,9 +219,9 @@ class EvaluationDatasetLoader :
 
                 dataset_path = "truthful_qa"
                 if self.cache_dir is not None :
-                    dataset = load_dataset(dataset_path, "generation", cache_dir=self.cache_dir)
+                    dataset = load_dataset(dataset_path, "multiple_choice", cache_dir=self.cache_dir)
                 else :
-                    dataset = load_dataset(dataset_path, "generation")
+                    dataset = load_dataset(dataset_path, "multiple_choice")
                 dataset = dataset["validation"]
 
             elif "winogrande" in dataset_name :
