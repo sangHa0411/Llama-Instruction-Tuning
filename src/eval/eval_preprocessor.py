@@ -54,6 +54,13 @@ class EvaluationDatasetPreprocessor :
                 remove_column_names = list(set(dataset.column_names) - set(["id"]))
                 preprocessed = dataset.map(preprocess_fn, batched=True, num_proc=self.num_cores, remove_columns=remove_column_names)
 
+                # Count the data which length is longer then sequence_max_length
+                data_longer_then_sequence_max_length = 0
+                for d in preprocessed :
+                    if len(d["input_ids"]) > self.sequence_max_length :
+                        data_longer_then_sequence_max_length += 1
+                logging.info(f"### The number of data which length is longer then sequence_max_length\n{data_longer_then_sequence_max_length}\n")
+
                 preprocessed_example = preprocessed[0]["input_ids"]
                 preprocessed_label = preprocessed[0]["labels"]
 
@@ -111,7 +118,7 @@ class EvalArcPreprocessor :
         few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
-    # Delete if first shot is truncated
+    # Delete first shot if first shot is truncated
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
@@ -242,7 +249,7 @@ class EvalMmluPreprocessor :
         few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
-    # Delete if first shot is truncated
+    # Delete first shot if first shot is truncated
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
@@ -368,7 +375,7 @@ class EvalHellaswagPreprocessor :
         few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
-    # Delete if first shot is truncated
+    # Delete first shot if first shot is truncated
     def _truncate(self, input_ids: List[int], activity_labels: List[str]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
@@ -494,7 +501,7 @@ class EvalGSM8KPreprocessor :
         few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
-    # Delete if first shot is truncated
+    # Delete first shot if first shot is truncated
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)
@@ -668,7 +675,7 @@ class EvalWinograndePreprocessor :
         few_shot_example = "\n\n".join(examples)
         return few_shot_example
 
-    # Delete if first shot is truncated
+    # Delete fist shot if first shot is truncated
     def _truncate(self, input_ids: List[int]) :
         input_ids = input_ids[-self.sequence_max_length:]
         input_string = self.tokenizer.decode(input_ids)

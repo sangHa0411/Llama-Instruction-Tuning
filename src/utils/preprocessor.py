@@ -49,13 +49,26 @@ class InstructionDatasetPreprocessor :
                 logging.info(f"Preprocessing and Encoding Dataset | {dataset_name}")
                 preprocessor = self.preprocessors[dataset_name]
 
+                # Preprocessing and encoding dataset
                 preprocess_fn = preprocessor.preprocess
                 preprocessed = dataset.map(preprocess_fn, batched=True, num_proc=self.num_cores, remove_columns=dataset.column_names)
 
-                preprocessed_example = preprocessed[0]["input_ids"]
-                preprocessed_example = self.tokenizer.decode(preprocessed_example)
+                # Count the data which length is longer then sequence_max_length
+                data_longer_then_sequence_max_length = 0
+                for d in preprocessed :
+                    if len(d["input_ids"]) > self.sequence_max_length :
+                        data_longer_then_sequence_max_length += 1
+                logging.info(f"### The number of data which length is longer then sequence_max_length\n{data_longer_then_sequence_max_length}\n")
 
-                logging.info(f"Preprocessed dataset | {dataset_name}\n### EXAMPLE\n{preprocessed_example}\n\n")
+                # Logging preprocessed dataset's input_id and label example
+                preprocessed_input_id = preprocessed[0]["input_ids"]
+                preprocessed_input_text = self.tokenizer.decode(preprocessed_input_id)
+
+                preprocessed_label = preprocessed[0]["labels"]
+                preprocessed_label = [l for l in preprocessed_label if l >= 0]
+                preprocessed_label_text = self.tokenizer.decode(preprocessed_label)
+
+                logging.info(f"Preprocessed dataset | {dataset_name}\n### Input\n{preprocessed_input_text}\n### Label\n{preprocessed_label_text}\n\n")
 
                 preprocessed_datasets.append(preprocessed)  
 
@@ -109,7 +122,7 @@ class AlpacaPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            source_input_id_length = len(source_input_id)
+            source_input_id_length = len(source_input_id) - 1
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
             label = label[1:] + [self.tokenizer.eos_token_id]
 
@@ -165,7 +178,7 @@ class CoTCollectionPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            source_input_id_length = len(source_input_id)
+            source_input_id_length = len(source_input_id) - 1
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
             label = label[1:] + [self.tokenizer.eos_token_id]
 
@@ -239,7 +252,7 @@ class SlimOrcaPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            source_input_id_length = len(source_input_id)
+            source_input_id_length = len(source_input_id) - 1
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
             label = label[1:] + [self.tokenizer.eos_token_id]
 
@@ -294,7 +307,7 @@ class OpenOrcaMCPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            source_input_id_length = len(source_input_id)
+            source_input_id_length = len(source_input_id) - 1
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
             label = label[1:] + [self.tokenizer.eos_token_id]
 
@@ -347,7 +360,7 @@ class WizardLMPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            source_input_id_length = len(source_input_id)
+            source_input_id_length = len(source_input_id) - 1
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
             label = label[1:] + [self.tokenizer.eos_token_id]
 
@@ -400,7 +413,7 @@ class OpenPlatypusPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            source_input_id_length = len(source_input_id)
+            source_input_id_length = len(source_input_id) - 1
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
             label = label[1:] + [self.tokenizer.eos_token_id]
 
@@ -459,7 +472,7 @@ class MmluPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            source_input_id_length = len(source_input_id)
+            source_input_id_length = len(source_input_id) - 1 
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
             label = label[1:] + [self.tokenizer.eos_token_id]
 
@@ -520,7 +533,7 @@ class ArcPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            source_input_id_length = len(source_input_id)
+            source_input_id_length = len(source_input_id) - 1 
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
             label = label[1:] + [self.tokenizer.eos_token_id]
 
@@ -577,7 +590,7 @@ class HellaswagPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            source_input_id_length = len(source_input_id)
+            source_input_id_length = len(source_input_id) - 1
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
             label = label[1:] + [self.tokenizer.eos_token_id]
 
@@ -630,7 +643,7 @@ class GSM8KPreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            source_input_id_length = len(source_input_id)
+            source_input_id_length = len(source_input_id) - 1
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
             label = label[1:] + [self.tokenizer.eos_token_id]
 
@@ -692,7 +705,7 @@ class WinograndePreprocessor :
                 truncation='do_not_truncate',
                 add_special_tokens=False
             ).input_ids
-            source_input_id_length = len(source_input_id)
+            source_input_id_length = len(source_input_id) - 1
             label = [self.label_pad_token_id] * source_input_id_length + all_input_id[source_input_id_length:]
             label = label[1:] + [self.tokenizer.eos_token_id]
 

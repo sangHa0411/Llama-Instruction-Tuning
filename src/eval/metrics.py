@@ -6,7 +6,8 @@ class InstructionMetrics :
 
     def __init__(self, ) :
         pass
-
+    
+    # Find minimum perplexity candidate in data and check if minimum candidate and label are same.
     def get_multiple_choice_acc(self, results: Dict[str, Any]) :
         total_acc, total_acc_norm = 0, 0
 
@@ -33,6 +34,7 @@ class InstructionMetrics :
 
         return {"acc" : total_acc, "acc_norm" : total_acc_norm}
 
+    # Just score accuracy using generation after ####.
     def get_gsm8k_acc(self, results: Dict[str, Any]) :
         total_acc = 0
         for data_id in results :
@@ -50,6 +52,7 @@ class InstructionMetrics :
         total_acc = total_acc / len(results)
         return {"acc" : total_acc}
 
+    # This code and algorithm are based on https://github.com/voidism/DoLa/blob/main/tfqa_mc_eval.py.
     def get_truthful_qa_mc2(self, results: Dict[str, Any]) :
         mc2 = 0
         for data_id in results :
