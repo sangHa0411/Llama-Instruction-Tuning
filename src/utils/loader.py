@@ -181,15 +181,7 @@ class EvaluationDatasetLoader :
                     challenge_dataset = load_dataset(dataset_path, "ARC-Challenge", cache_dir=self.cache_dir)
                 else :
                     challenge_dataset = load_dataset(dataset_path, "ARC-Challenge")
-                challenge_dataset = challenge_dataset["validation"]
-
-                if self.cache_dir is not None :
-                    easy_dataset = load_dataset(dataset_path, "ARC-Easy", cache_dir=self.cache_dir)
-                else :
-                    easy_dataset = load_dataset(dataset_path, "ARC-Easy")
-                easy_dataset = easy_dataset["validation"]
-
-                dataset = concatenate_datasets([challenge_dataset, easy_dataset])
+                dataset = challenge_dataset["test"]
 
             elif "mmlu" in dataset_name :
                 dataset_path = "cais/mmlu"
@@ -198,7 +190,7 @@ class EvaluationDatasetLoader :
                 else :
                     dataset = load_dataset(dataset_path, "all")
 
-                dataset = dataset["validation"]
+                dataset = dataset["test"]
 
             elif "hellaswag" in dataset_name :
                 dataset_path = "Rowan/hellaswag"

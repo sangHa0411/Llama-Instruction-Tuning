@@ -169,10 +169,10 @@ class EvalArcPreprocessor :
             # Preprocess all candidates using same prompt
             for j in range(len(choice["text"])) :
                 candidate = choice["text"][j]
-                input_text = input_text + candidate
+                all_input_text = input_text + candidate
 
                 input_id = self.tokenizer(
-                    input_text, 
+                    all_input_text, 
                     max_length=self.sequence_max_length,
                     truncation='do_not_truncate',
                     add_special_tokens=False
@@ -296,10 +296,10 @@ class EvalMmluPreprocessor :
             # Preprocess all candidates using same prompt
             for j in range(len(choice)) :
                 candidate = choice[j]
-                input_text = input_text + candidate
+                all_input_text = input_text + candidate
 
                 input_id = self.tokenizer(
-                    input_text, 
+                    all_input_text, 
                     max_length=self.sequence_max_length,
                     truncation='do_not_truncate',
                     add_special_tokens=False
@@ -426,10 +426,10 @@ class EvalHellaswagPreprocessor :
             sub_candidate_lengths = []
             for j in range(len(ending)) :
                 candidate = ending[j]
-                input_text = input_text + " " + candidate
+                all_input_text = input_text + " " + candidate
 
                 input_id = self.tokenizer(
-                    input_text, 
+                    all_input_text, 
                     max_length=self.sequence_max_length,
                     truncation='do_not_truncate',
                     add_special_tokens=False

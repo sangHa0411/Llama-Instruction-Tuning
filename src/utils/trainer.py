@@ -208,8 +208,6 @@ class Trainer :
         @jax.jit
         # Get sequence logit from input_ids
         def forward_step(params, input_ids: jnp.ndarray, attention_mask: jnp.array) :
-            batch_size = input_ids.shape[0]
-
             outputs = jax_model(
                 input_ids=input_ids, 
                 attention_mask=attention_mask,
@@ -225,16 +223,16 @@ class Trainer :
             # Answer token for input_sequence
             sequence_labels = input_ids[:, 1:]
 
-            sequence_log_prob_results = []
-            for i in range(batch_size) :
-                sequence_label = sequence_labels[i]
-                sequence_id = jnp.arange(len(sequence_label))
+            batch_size, sequence_length = sequence_logits.shape[0], sequence_logits.shape[1]
 
-                # Sequence log probability for label token
-                sequence_log_prob = sequence_log_probs[i][sequence_id, sequence_label]
-                sequence_log_prob_results.append(sequence_log_prob)
-                
-            return sequence_log_prob_results
+            batch_ids = jnp.expand_dims(jnp.arange(batch_size), 1)
+            batch_ids = jnp.repeat(batch_ids, repeats=sequence_length, axis=1)
+
+            position_ids = jnp.expand_dims(jnp.arange(sequence_length), 0)
+            position_ids = jnp.repeat(position_ids, repeats=batch_size, axis=0)
+
+            sequence_log_probs = sequence_log_probs[batch_ids, position_ids, sequence_labels]
+            return sequence_log_probs
 
         rng = jax.random.PRNGKey(self.args.random_seed)
         rng, dropout_rng = jax.random.split(rng)
