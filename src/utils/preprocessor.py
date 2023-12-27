@@ -161,8 +161,8 @@ class CoTCollectionPreprocessor :
             rationale = rationales[i]
             target = targets[i]
 
-            all_text = f"Question: {source}\nRationale: {rationale}\nAnswer: {target}"
-            source_text = f"Question: {source}\nRationale: "
+            all_text = f"{source}\nRationale: {rationale}\nAnswer: {target}"
+            source_text = f"{source}\nRationale: "
            
             all_input_id = self.tokenizer(
                 all_text, 

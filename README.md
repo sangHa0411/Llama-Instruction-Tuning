@@ -89,6 +89,48 @@
 <br>
 <br>
 
+## Model parameter freezing
+  * You can freeze specific parameter, this can make this parameter not be updated during training.
+  * I freeze **input embedding layer**, **layer normalization** and **lm_head**.
+    * If you want to choose other layer to be freezed, you shoud change ```create_mask``` function in ```utils/optimizer.py```
+      * Code
+        ```python
+          def create_mask(self, params: PyTree[jnp.ndarray]) -> PyTree[str]:
+              def freeze_mask(param_name: List[str]) -> bool :
+                  for p_name in param_name :
+                      if "embedding" in p_name :
+                          return True
+                      if "norm" in p_name :
+                          return True
+                      if "lm_head" in p_name :
+                          return True
+                  return False
+
+              def _map(params, mask, routes):
+                  for k in params :
+                      if isinstance(params[k], FrozenDict):
+                          mask[k] = {}
+                          _map(params[k], mask[k], routes+[k])
+                      else:
+                          paran_name = routes + [k]
+                          if freeze_mask(paran_name) :
+                              mask[k] = "frozen"
+                          else :
+                              mask[k] = "trainable"
+
+              parm_masks = {}
+              _map(params, parm_masks, [])
+              return frozen_dict.freeze(parm_masks)
+        ```
+      * Description
+        1. Search all leaves(parameters' name) using Depth-First-Search.
+        2. After arriving leaf, check parameter's name has embedding, norm or lm_head.
+        3. If parameter's nams has embedding, layernorm or lm_head then make that parameter's value be 'frozen', otherwise be 'trainable'
+
+
+<br>
+<br>
+
 ## Evaluation
   * You can easly select evaluation benchmarks and select few-shot size using ```evaluation_datasets``` and ```evaluation_shots``` columns.
   * This is example of fine-tuning command.
@@ -152,14 +194,11 @@
         Identity is of fundamental importance to the social constructivist perspective because it is the basest principle in defining behaviour; it is a naturally bestowed quality comprised of certain unalterable behavioural characteristics.
         ```
       * The number of candidates : 4
-      * Metric : `acc_norm`
-      * Evaulation Shot size : 5
-    * 2-Shot example for Hellaswag dataset
+      * Metric : `acc` or `acc_norm`
+    * 1-Shot example for Hellaswag dataset
       * Input with prompt
         ```
         Cutting the grass: A man walks outside plugs his lawn mower in and gets ready to mow. he starts mowing his lawn casually going over all the grass.
-
-        Drum corps: People watch a parade where people walk on front a marching band holding a banner and waving the viewers. a man cross the street holding a small flag and extend his hand.
 
         Roof shingle removal: A man is sitting on a roof.
         ```
@@ -168,8 +207,7 @@
         he is using wrap to wrap a pair of skis.
         ```
       * The number of candidates : 4
-      * Metric : `acc_norm`
-      * Evaluation Shot size : 10
+      * Metric : `acc` or `acc_norm`
     * 0-Shot example for Truthful QA dataset
       * Input
         ```
@@ -181,12 +219,9 @@
         ```
       * There are multi correct answers and incorrect answers
       * Metric : `mc2`
-      * Evaulation Shot size : 0
-    * 2-Shot example for Winogrande example
+    * 1-Shot example for Winogrande example
       * Input with prompt
         ```
-        Michael just bought brand new wheels for his truck unlike Leslie because Leslie wheels were new and perfect.
-
         Christmas was a special holiday to Eric but not Adam since Adam was a Jew.
 
         Sarah was a much better surgeon than Maria so 
@@ -196,8 +231,7 @@
         Sarah always got the easier cases.
         ```
       * The number of candidates : 2
-      * Metric : `acc_norm`
-      * Evaluation Shot size : 5
+      * Metric : `acc` or `acc_norm`
     * 1-Shot example fro GSM8K
       * Input with prompt
         ```
@@ -219,7 +253,6 @@
         #### 18
         ```
       * Metric : `exact_match` after **####**
-      * Evaluation Shot size : 5
 
 
 <br>
@@ -277,26 +310,25 @@
         --model_path="/mnt/disks-standard/persist/llama/llama-2-7b-hf" \
         --tokenizer_path="/mnt/disks-standard/persist/llama/llama-2-7b-hf" \
         --instruction_datasets="[slimorca]" \
-        --dataset_sizes="[10000]" \
+        --dataset_sizes="[15000]" \
         --evaluation_datasets="[arc,hellaswag,mmlu,truthful_qa,winogrande_l,gsm8k]" \
         --evaluation_shots="[25,10,5,0,5,5]" \
         --random_seed=42 \
         --per_device_train_batch_size=8 \
-        --per_device_eval_forward_batch_size=16 \
+        --per_device_eval_forward_batch_size=4 \
         --per_device_eval_generate_batch_size=2 \
-        --sequence_max_length=512 \
+        --sequence_max_length=1024 \
         --eval_sequence_max_length=1536 \
         --generation_max_length=128 \
         --gradient_checkpointing=True \
-        --evaluation_strategy="steps" \
-        --eval_steps=3 \
+        --evaluation_strategy="epoch" \
         --logging_dir="/home/sangha110495/project/Llama-Instruction-Tuning/logging" \
         --output_dir="/mnt/disks-standard/persist/llm/llama-instruction-tuning/exps/checkpoints" \
         --cache_dir="/mnt/disks-standard/persist/huggingface" \
-        --num_train_epochs=3 \
+        --num_train_epochs=5 \
         --weight_decay=1e-2 \
         --warmup_ratio=0.1 \
-        --learning_rate=3e-15 \
+        --learning_rate=2e-5 \
         --lr_scheduler_type="constant" \
         --logging_steps=100
     ```
