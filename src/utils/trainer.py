@@ -311,23 +311,23 @@ class Trainer :
             def compute_loss(params):
                 labels = batch.pop("labels")
                 logits = jax_model(**batch, params=params, dropout_rng=dropout_rng, train=True)[0]
-                loss = loss_fn(logits, labels)
-                return loss
+                loss, acc = loss_fn(logits, labels)
+                return loss, acc
 
-            grad_fn = jax.value_and_grad(compute_loss)
-            loss, grads = grad_fn(params)
+            grad_fn = jax.value_and_grad(compute_loss, has_aux=True)
+            (loss, acc), grads = grad_fn(params)
 
             updates, new_opt_state = optimizer_update(grads, opt_state, params)
             new_params = optax.apply_updates(params, updates)
 
-            metrics = {"loss": loss, "learning_rate": self.lr_scheduler(step)}
+            metrics = {"loss": loss, "accuracy": acc, "learning_rate": self.lr_scheduler(step)}
             return new_params, new_opt_state, new_dropout_rng, metrics
 
         rng = jax.random.PRNGKey(self.args.random_seed)
         rng, dropout_rng = jax.random.split(rng)
 
         training_step_ptr = 0
-        train_loss_ptr = {"loss": 0.0, "num_step": 0}
+        train_metric_ptr = {"loss": 0.0, "accuracy": 0.0, "num_step": 0}
 
         num_epoch = self.args.num_train_epochs
         train_batch_size = self.args.per_device_train_batch_size
@@ -359,19 +359,24 @@ class Trainer :
                     training_step_ptr += 1
                     progress_bar_train.update(1)
 
-                    train_loss_ptr["loss"] += train_metric["loss"].mean().item()
-                    train_loss_ptr["num_step"] += 1
+                    train_metric_ptr["loss"] += train_metric["loss"].mean().item()
+                    train_metric_ptr["accuracy"] += train_metric["accuracy"].mean().item()
+                    train_metric_ptr["num_step"] += 1
 
                     if training_step_ptr % (self.args.logging_steps) == 0 :
-                        train_loss = train_loss_ptr["loss"] / train_loss_ptr["num_step"]
+                        train_loss = train_metric_ptr["loss"] / train_metric_ptr["num_step"]
+                        train_acc = train_metric_ptr["accuracy"] / train_metric_ptr["num_step"]
+
                         learning_rate = train_metric["learning_rate"].item()
-                        logging.info(f"Train [Step : %s] | Loss: %.8f & Learning Rate: %e\n" %(training_step_ptr, train_loss, learning_rate))
+                        logging.info(f"Train [Step : %s] | Loss: %.8f & Accuracy: %.8f & Learning Rate: %e\n" %(training_step_ptr, train_loss, train_acc, learning_rate))
 
                         self.writer.add_scalar("train/loss", train_loss, global_step=training_step_ptr)
+                        self.writer.add_scalar("train/accuracy", train_acc, global_step=training_step_ptr)
                         self.writer.add_scalar("train/learning_rate", learning_rate, global_step=training_step_ptr)
 
-                        train_loss_ptr["loss"] = 0.0
-                        train_loss_ptr["num_step"] = 0
+                        train_metric_ptr["loss"] = 0.0
+                        train_metric_ptr["accuracy"] = 0.0
+                        train_metric_ptr["num_step"] = 0
 
                     if self.args.evaluation_strategy == "steps" :
                         if training_step_ptr % self.args.eval_steps == 0 :

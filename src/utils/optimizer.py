@@ -17,9 +17,11 @@ class OptimizerFactory :
     def create_mask(self, params: PyTree[jnp.ndarray]) -> PyTree[str]:
         def freeze_mask(param_name: List[str]) -> bool :
             for p_name in param_name :
-                if "embedding" == p_name :
+                if "embedding" in p_name :
                     return True
                 if "norm" in p_name :
+                    return True
+                if "lm_head" in p_name :
                     return True
             return False
 
