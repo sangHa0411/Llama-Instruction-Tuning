@@ -6,8 +6,6 @@ import optax
 import logging
 import numpy as np
 import jax.numpy as jnp
-from collections import defaultdict
-from typing import Dict, List, Tuple, Any
 from pytz import timezone
 from datetime import datetime
 from datasets import Dataset
@@ -18,11 +16,12 @@ from data.collator import Seq2SeqCollator
 from eval.metrics import InstructionMetrics
 from eval.postprocessor import Postprocessor
 from model.llama_model import FlaxLlaMaForCausalLM
-from transformers import LlamaTokenizer, LlamaConfig, LlamaForCausalLM
 from transformers.generation import GenerationConfig
 from flax.traverse_util import flatten_dict
-from utils.scheduler import create_constant_lr_scheduler, create_linear_decay_lr_scheduler
+from utils.optimizer import OptimizerFactory
 from torch.utils.tensorboard import SummaryWriter
+from transformers import LlamaTokenizer, LlamaConfig, LlamaForCausalLM
+from typing import Dict, List, Tuple, Any
 from tqdm import tqdm
 
 logging.basicConfig(format = "[%(asctime)s][%(levelname)s][Message] - %(message)s", level = logging.INFO)
@@ -41,7 +40,6 @@ class Trainer :
         eval_datasets: Dict[str, Dataset],
         data_collator: Seq2SeqCollator 
     ) :
-
         self.args = args
         self.model = model
         self.params = params
@@ -50,36 +48,9 @@ class Trainer :
         self.eval_datasets = eval_datasets
         self.data_collator = data_collator
 
-        # Train Batch Size
-        train_batch_size = args.per_device_train_batch_size
-
-        # Scheduler
-        if args.lr_scheduler_type == "constant" :
-            lr_scheduler = create_constant_lr_scheduler(
-                len(dataset),
-                train_batch_size=train_batch_size,
-                num_train_epochs=args.num_train_epochs,
-                warmup_ratio=args.warmup_ratio,
-                learning_rate=args.learning_rate
-            )
-        elif args.lr_scheduler_type == "linear" :
-            lr_scheduler = create_linear_decay_lr_scheduler(
-                len(dataset),
-                train_batch_size=train_batch_size,
-                num_train_epochs=args.num_train_epochs,
-                warmup_ratio=args.warmup_ratio,
-                learning_rate=args.learning_rate
-            )
-        else :
-            raise NotImplementedError("Not implemented lr scheduelr type")
-        self.lr_scheduler = lr_scheduler
-
-        # Optimizer
-        optimizer = optax.adamw(
-            learning_rate=lr_scheduler,
-            weight_decay=args.weight_decay,
-            mu_dtype=jnp.bfloat16
-        )
+        opt_factory = OptimizerFactory(args, num_data=len(dataset))
+        lr_scheudler, optimizer = opt_factory.get_optimizer(params)
+        self.lr_scheduler = lr_scheudler
         self.optimizer = optimizer
 
         # directory path for checkpoints
@@ -131,7 +102,14 @@ class Trainer :
         model.save_pretrained(os.path.join(output_dir, f"checkpoint-{num_training_step}"))
 
     # Postprocess evaluation results and score metrics
-    def score_prediction(self, dataset_name: str, dataset: Dataset, prediction: Dict[str, Any], labels:List[Any]) :
+    def score_prediction(
+        self, 
+        dataset_name: str, 
+        dataset: Dataset, 
+        prediction: Dict[str, Any], 
+        labels:List[Any]
+    ) -> Dict[str, float]:
+    
         insturction_metrics = InstructionMetrics()
         postprocessor = Postprocessor(tokenizer=self.tokenizer)
 
@@ -343,7 +321,7 @@ class Trainer :
             new_params = optax.apply_updates(params, updates)
 
             metrics = {"loss": loss, "learning_rate": self.lr_scheduler(step)}
-            return new_params, tuple(new_opt_state), new_dropout_rng, metrics
+            return new_params, new_opt_state, new_dropout_rng, metrics
 
         rng = jax.random.PRNGKey(self.args.random_seed)
         rng, dropout_rng = jax.random.split(rng)
