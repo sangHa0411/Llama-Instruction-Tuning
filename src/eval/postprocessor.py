@@ -25,7 +25,7 @@ class Postprocessor :
         for i in range(len(generations)) :
             data = dataset[i]
 
-            data_id = data[i]["id"]
+            data_id = data["id"]
             generation = generations[i]
             label = labels[i]
 

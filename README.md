@@ -347,9 +347,17 @@
 <br>
 <br>
 
-## Further points
-  * These are tasks which i am studying nowdays and i am going to implement in this repository.
-    1. Reproduce Llama2-7B's performance in Open LLM Leaderboard.
-    2. Add chat datasets for instruction-tuning.
-    3. Gradient accumulation steps
-    3. LoRA for Llama in Jax/Flax.
+## Result
+* Llama2-7b | Not insturction-tuned
+  * Random Seed 42
+  * Score
+    |Source|Arc|Hellaswag|MMLU|Truthful QA|Winogrande|GSM8K
+    |---|---|---|---|---|---|---|
+    |Open LLM Leaderboard|53.07|78.59|46.87|39.76|74.03|14.48|
+    |This repository|53.03|79.18|46.79|46.74|68.35|10.39|
+* Description
+  * Arc, Hellaswag, and MMLU scores is similar to Open LLM Leaderboard's score.
+  * Truthful QA's score from this repository is much higher then Open LLM Leaderboard's score.
+  * Winogrande and GSM8K scores from this repository is lower then Open LLM Leaderboard's scores.
+  * **I am looking into these evaluation datasets why scores are different Open LLM Leaderboard's scores.**
+
